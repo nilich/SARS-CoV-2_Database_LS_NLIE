@@ -1,0 +1,8 @@
+.snakemake/
+Reads/
+Results/
+log/
+GISAID_genomes/
+.Rhistory
+snakemake-*.err
+snakemake-*.out

@@ -77,7 +77,7 @@ rule bwa_map:
     input:
         RESULTS_DIR + "/Trimming/{sample}_trimmed.fq.gz"
     output:
-        aligned=RESULTS_DIR + "/Alignment/{sample}.sam",
+        temp(aligned=RESULTS_DIR + "/Alignment/{sample}.sam"),
         sorted=RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
     params:
         genome=config["References"]["Genome"]
@@ -97,7 +97,7 @@ rule samtools_readcount:
     input:
         RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
     output:
-        RESULTS_DIR + "/Alignment/{sample}.readcount.txt"
+        temp(RESULTS_DIR + "/Alignment/{sample}.readcount.txt")
     shell:
         """
         MAP=$(samtools idxstats {input} | head -n1 | awk -F '\t' '{{print $3}}')
@@ -111,7 +111,7 @@ rule cat_readcount:
     input:
         expand(RESULTS_DIR + "/Alignment/{sample}.readcount.txt", sample=SAMPLES)
     output:
-        RESULTS_DIR + "/Alignment/readcount_all.txt"
+        temp(RESULTS_DIR + "/Alignment/readcount_all.txt")
     shell:
         """
         cat {input} > {output}
@@ -132,7 +132,7 @@ rule mean_cov:
     input:
         RESULTS_DIR + "/Coverage/{sample}.cov"
     output:
-        RESULTS_DIR + "/Coverage/{sample}.covStats.txt",
+        temp(RESULTS_DIR + "/Coverage/{sample}.covStats.txt"),
     shell:
         """
         SAMPLE={wildcards.sample}
@@ -149,32 +149,11 @@ rule cat_cov:
     input:
         expand(RESULTS_DIR + "/Coverage/{sample}.covStats.txt", sample=SAMPLES),
     output:
-        RESULTS_DIR + "/Coverage/covStats_all.txt",
+        temp(RESULTS_DIR + "/Coverage/covStats_all.txt"),
     shell:
         """
         cat {input} > {output}
         """
-
-### create Summary
-rule cat_Stats:
-    input:
-        cov=RESULTS_DIR + "/Coverage/covStats_all.txt",
-        rc=RESULTS_DIR + "/Alignment/readcount_all.txt",
-        pg=RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
-        vadr=RESULTS_DIR + "/QC/VADR/vadr_summary.csv"
-    output:
-        out=RESULTS_DIR + "/Summary_Results.csv"
-    run:
-        import pandas as pd
-        import numpy as np
-        from functools import reduce
-        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Breath_10", "%Breath_10", " Breath_400", "%Breath_400"])
-        rc = pd.read_csv(input.rc, names=["Name", "MappedReads", "TotalReads"])
-        pg = pd.read_csv(input.pg, names=["Name", "Linage", "Propability"])
-        vadr = pd.read_csv(input.vadr, names=["Name", "Vadr_QC"])
-        data_frames = [pg, cov, rc, vadr]
-        sum = reduce(lambda  left,right: pd.merge(left,right,on=['Name'], how='outer'), data_frames)
-        sum.to_csv(output.out, sep=',', encoding='utf-8', index = False, header=True, na_rep='NA')
 
 ### create consensus
 rule consensus:
@@ -196,7 +175,7 @@ rule vadr:
         trimmed=RESULTS_DIR + "/QC/VADR/{sample}.tr.fa",
         alt=RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list",
         dir=directory(RESULTS_DIR + "/QC/VADR/{sample}"),
-        sum=RESULTS_DIR + "/QC/VADR/{sample}.summary.csv",
+        temp(sum=RESULTS_DIR + "/QC/VADR/{sample}.summary.csv"),
     conda:
         "envs/vadr.yaml"
     shell:
@@ -237,7 +216,7 @@ rule cat_cns:
     input:
         expand(RESULTS_DIR + "/Consensus/{sample}.fa", sample=SAMPLES),
     output:
-        RESULTS_DIR + "/Consensus/all_samples.fa",
+        temp(RESULTS_DIR + "/Consensus/all_samples.fa"),
     shell:
         """
         cat {input} > {output}
@@ -248,12 +227,34 @@ rule pangolin:
         RESULTS_DIR + "/Consensus/all_samples.fa",
     output:
         full=RESULTS_DIR + "/Consensus/pangolin_output.csv",
-        reduced=RESULTS_DIR + "/Consensus/pangolin_output.red.csv"
+        temp(reduced=RESULTS_DIR + "/Consensus/pangolin_output.red.csv")
     shell:
         """
         pangolin {input} --outfile {output.full}
         sed '1d' {output.full} | cut -f 1,2,3 -d ',' > {output.reduced}
         """
+
+### create Summary
+rule cat_Stats:
+    input:
+        cov=RESULTS_DIR + "/Coverage/covStats_all.txt",
+        rc=RESULTS_DIR + "/Alignment/readcount_all.txt",
+        pg=RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
+        vadr=RESULTS_DIR + "/QC/VADR/vadr_summary.csv"
+    output:
+        out=RESULTS_DIR + "/Summary_Results.csv"
+    run:
+        import pandas as pd
+        import numpy as np
+        from functools import reduce
+        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Breath_10", "%Breath_10", " Breath_400", "%Breath_400"])
+        rc = pd.read_csv(input.rc, names=["Name", "MappedReads", "TotalReads"])
+        pg = pd.read_csv(input.pg, names=["Name", "Linage", "Propability"])
+        vadr = pd.read_csv(input.vadr, names=["Name", "Vadr_QC"])
+        data_frames = [pg, cov, rc, vadr]
+        sum = reduce(lambda  left,right: pd.merge(left,right,on=['Name'], how='outer'), data_frames)
+        sum.to_csv(output.out, sep=',', encoding='utf-8', index = False, header=True, na_rep='NA')
+
 ################## Variant Calling
 rule indelqual:
     input:

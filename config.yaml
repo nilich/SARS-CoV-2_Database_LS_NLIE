@@ -5,6 +5,7 @@ general:
   RAW_READS: "Reads"
   RESULTS_DIR: "Results"
   threads: 4
+  vadrdir: "/software/QC/VADR" # directory where vadr is installed
 
 
 References:

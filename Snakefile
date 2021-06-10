@@ -6,10 +6,10 @@
 ## TODO: update Pangolin incl. documentation
 ## TODO: test if triming is working with adapters as params
 configfile: "config.yaml"
+
 # 1. Initialize Result Directory
 RESULTS_DIR = config["general"]["RESULTS_DIR"]
 RAW_READS = config["general"]["RAW_READS"]
-# --> reads können einfach aus dem RawRead Dir gelesen werden... --> bam files
 
 SAMPLES, = glob_wildcards((RAW_READS + "/{sample}.bam"))
 
@@ -17,20 +17,20 @@ SAMPLES, = glob_wildcards((RAW_READS + "/{sample}.bam"))
 ## defines which files to output...
 rule all:
     input:
-        RESULTS_DIR + "/Alignment/readcount_all.txt",
-        RESULTS_DIR + "/Coverage/covStats_all.txt",
-        expand(RESULTS_DIR + "/Coverage/{sample}.cov", sample=SAMPLES),
-        expand(RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf", sample=SAMPLES),
-        expand(RESULTS_DIR + "/Var_annot/{sample}.lofreq.DP400.AF003.annot.vcf", sample=SAMPLES),
+        #RESULTS_DIR + "/Alignment/readcount_all.txt",
+        #RESULTS_DIR + "/Coverage/covStats_all.txt",
+        #expand(RESULTS_DIR + "/Coverage/{sample}.cov", sample=SAMPLES),
+        #expand(RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf", sample=SAMPLES), # do we need this file? pobably not
+        expand(RESULTS_DIR + "/Var_annot/{sample}.lofreq.DP400.AF003.annot.vcf", sample=SAMPLES), # DP and AF filtered vcf, keep
         expand(RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab", sample=SAMPLES),
         expand(RESULTS_DIR + "/Var_annot/{sample}.Sprot.DP400.AF003.annot.tab", sample=SAMPLES),
         RESULTS_DIR + "/Consensus/pangolin_output.csv",
-        RESULTS_DIR + "/Consensus/all_samples.fa",
+        #RESULTS_DIR + "/Consensus/all_samples.fa",
         RESULTS_DIR + "/Summary_Results.csv",
         expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
         expand(RESULTS_DIR + "/Var_annot/{sample}.md", sample=SAMPLES),
-        expand(RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
-        RESULTS_DIR + "/QC/VADR/vadr_summary.csv",
+        #expand(RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
+        #RESULTS_DIR + "/QC/VADR/vadr_summary.csv",
 
 ### bam to fastq
 rule bamTofastq:
@@ -172,15 +172,17 @@ rule vadr:
     input:
         RESULTS_DIR + "/Consensus/{sample}.fa"
     output:
-        trimmed=RESULTS_DIR + "/QC/VADR/{sample}.tr.fa",
+        temp(trimmed=RESULTS_DIR + "/QC/VADR/{sample}.tr.fa"),
         alt=RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list",
         dir=directory(RESULTS_DIR + "/QC/VADR/{sample}"),
         temp(sum=RESULTS_DIR + "/QC/VADR/{sample}.summary.csv"),
+    params:
+        vadrdir=config["general"]["vadrdir"]
     conda:
         "envs/vadr.yaml"
     shell:
         """
-        export VADRINSTALLDIR=/software/QC/VADR
+        export VADRINSTALLDIR={params.vadrdir}
         export VADRSCRIPTSDIR="$VADRINSTALLDIR/vadr"
         export VADRMODELDIR="$VADRINSTALLDIR/vadr-models-calici"
         export VADRINFERNALDIR="$VADRINSTALLDIR/infernal/binaries"
@@ -205,7 +207,7 @@ rule cat_vadr:
     input:
         expand(RESULTS_DIR + "/QC/VADR/{sample}.summary.csv", sample=SAMPLES),
     output:
-        summary=RESULTS_DIR + "/QC/VADR/vadr_summary.csv",
+        temp(summary=RESULTS_DIR + "/QC/VADR/vadr_summary.csv"),
     shell:
         """
         cat {input} > {output}
@@ -260,7 +262,8 @@ rule indelqual:
     input:
         RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
     output:
-        RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam"
+        temp(RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam"),
+        temp(RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam.bai")
     threads:
         config["general"]["threads"]
     shell:
@@ -287,7 +290,7 @@ rule bgzip_tabix:
     input:
         RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf"
     output:
-        RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf.gz"
+        temp(RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf.gz"),
     shell:
         """
         bgzip {input}
@@ -299,14 +302,14 @@ rule filter_vcf:
         RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf.gz"
     output:
         all=RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf",
-        sprot=RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf"
+        #sprot=RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf"
     shell:
         """
         bcftools filter -i "DP>400 & AF>0.03" {input} -o {output.all}
-        grep -v '#' {output.all} | awk '$2>21562 && $2<25385' > {output.sprot}
         """
+        #grep -v '#' {output.all} | awk '$2>21562 && $2<25385' > {output.sprot}
+
 #--> filter anot vcf! cut -f 1,2,3,4,11 -d '|' M7.lofreq.filtered.sprot.annot.vcf | sed 's/ANN=[A-Z]//' | sed 's/p\.//' | sed 's/|/\t/g' > M7.variantsS.vcf
-## add header CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tVariant\tEffect\tProtein\tReplacement
 rule annot_vcf:
     input:
         RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf"
@@ -319,9 +322,11 @@ rule annot_vcf:
         snpEff ann NC_045512.2 {input} > {output.all}
         header="CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tVariant\tEffect\tProtein\tReplacement"
         echo -e $header >> {output.table}
-        grep -v '#' {output.all} | cut -f 1,2,3,4,11 -d '|' | sed 's/ANN=[A-Z]//' | sed 's/p\.//' | sed 's/|/\t/g' >> {output.table}
+        grep -v '#' {output.all} | cut -f 1,2,3,4,11 -d '|' | sed 's/ANN=[A-Z]//' | \
+        sed 's/p\.//' | sed 's/|/\t/g' >> {output.table}
         cat {output.table} | awk '$2>21562 && $2<25385' > {output.sprot}
         """
+
 ########### Prepare Files for Opengenomebrowser ##########
 ### --> Put in a separate snakefile!
 
@@ -338,7 +343,8 @@ rule prokka:
     threads: 4
     shell:
         """
-        prokka --kingdom Viruses --proteins References/NC_045512.2.faa --outdir {output.out} --cpus {threads} --force --prefix {wildcards.sample} --locustag {wildcards.sample} {input}
+        prokka --kingdom Viruses --proteins References/NC_045512.2.faa --outdir {output.out} \
+        --cpus {threads} --force --prefix {wildcards.sample} --locustag {wildcards.sample} {input}
         """
 ########## Prepare data for OpenGenomeBrowser ############ --> separate snakefile?
 ## Prepare markdown file with Spike Mutations --> parse vcf for nicer solution!
@@ -349,7 +355,9 @@ rule generate_md:
          RESULTS_DIR + "/Var_annot/{sample}.md",
     shell:
         """
-        cat {input} | sed 's/INDEL.*;//' | sed 's/=/\t/g' | sed 's/;/\t/g' | cut -f 2,4,5,9,11,20 | sed '1i Position\tReference\tAlternative\tDepth\tAllele Frequency\tAmino acid change' | sed 's/\t/,/g' |  csvtomd | sed '1i ### Mutations Spike Protein' > {output}
+        cat {input} | sed 's/INDEL.*;//' | sed 's/=/\t/g' | sed 's/;/\t/g' | cut -f 2,4,5,9,11,20 | \
+        sed '1i Position\tReference\tAlternative\tDepth\tAllele Frequency\tAmino acid change' | \
+        sed 's/\t/,/g' |  csvtomd | sed '1i ### Mutations Spike Protein' > {output}
         """
 #
 #DATABASE is ogb/database/organisms

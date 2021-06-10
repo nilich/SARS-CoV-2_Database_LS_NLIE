@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - blast=2.11.0=pl526he19e7b1_0
+  - prokka=1.14.6=pl5262hdfd78af_1

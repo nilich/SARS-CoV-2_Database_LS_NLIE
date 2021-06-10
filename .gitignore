@@ -6,3 +6,4 @@ GISAID_genomes/
 .Rhistory
 snakemake-*.err
 snakemake-*.out
+dag.svg

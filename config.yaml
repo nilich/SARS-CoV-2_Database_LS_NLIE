@@ -1,0 +1,13 @@
+
+## specify your read directory (bam files) and the location of the results directory here:
+
+general:
+  RAW_READS: "Reads"
+  RESULTS_DIR: "Results"
+  threads: 4
+
+
+References:
+  adapters: "References/IonXpress_bc_adapter_seq_1_96.fa"
+  Genome: "References/NC_045512.2.fasta"
+  gff3: "References/NC_045512.2.gff3"

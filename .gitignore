@@ -7,3 +7,5 @@ GISAID_genomes/
 snakemake-*.err
 snakemake-*.out
 dag.svg
+test_scripts/
+run_freebayes.sh

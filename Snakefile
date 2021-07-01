@@ -12,6 +12,7 @@ RESULTS_DIR = config["general"]["RESULTS_DIR"]
 RAW_READS = config["general"]["RAW_READS"]
 
 SAMPLES, = glob_wildcards((RAW_READS + "/{sample}.bam"))
+CWD=os.getcwd()
 
 
 ## defines which files to output...
@@ -20,17 +21,19 @@ rule all:
         #RESULTS_DIR + "/Alignment/readcount_all.txt",
         #RESULTS_DIR + "/Coverage/covStats_all.txt",
         #expand(RESULTS_DIR + "/Coverage/{sample}.cov", sample=SAMPLES),
-        #expand(RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf", sample=SAMPLES), # do we need this file? pobably not
+        expand(RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf", sample=SAMPLES), # do we need this file? pobably not
         expand(RESULTS_DIR + "/Var_annot/{sample}.lofreq.DP400.AF003.annot.vcf", sample=SAMPLES), # DP and AF filtered vcf, keep
         expand(RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab", sample=SAMPLES),
         expand(RESULTS_DIR + "/Var_annot/{sample}.Sprot.DP400.AF003.annot.tab", sample=SAMPLES),
         RESULTS_DIR + "/Consensus/pangolin_output.csv",
-        #RESULTS_DIR + "/Consensus/all_samples.fa",
+        RESULTS_DIR + "/Consensus/all_samples.fa",
         RESULTS_DIR + "/Summary_Results.csv",
         expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
         expand(RESULTS_DIR + "/Var_annot/{sample}.md", sample=SAMPLES),
-        #expand(RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
-        #RESULTS_DIR + "/QC/VADR/vadr_summary.csv",
+        expand(RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
+        RESULTS_DIR + "/QC/VADR/vadr_summary.csv",
+        CWD + "/" + RESULTS_DIR + "/summary.html",
+        expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
 
 ### bam to fastq
 rule bamTofastq:
@@ -77,7 +80,7 @@ rule bwa_map:
     input:
         RESULTS_DIR + "/Trimming/{sample}_trimmed.fq.gz"
     output:
-        temp(aligned=RESULTS_DIR + "/Alignment/{sample}.sam"),
+        aligned=temp(RESULTS_DIR + "/Alignment/{sample}.sam"),
         sorted=RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
     params:
         genome=config["References"]["Genome"]
@@ -168,14 +171,15 @@ rule consensus:
         samtools mpileup -d 0 -A {input} | ivar consensus -p {output} -i {wildcards.sample} -q 20 -m 10 -n N
         """
 ### run vadr for Quality Check of assembly
+### you need to install the VADR locally and set the path to the vadr installation in the config file
 rule vadr:
     input:
         RESULTS_DIR + "/Consensus/{sample}.fa"
     output:
-        temp(trimmed=RESULTS_DIR + "/QC/VADR/{sample}.tr.fa"),
+        trimmed=temp(RESULTS_DIR + "/QC/VADR/{sample}.tr.fa"),
         alt=RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list",
         dir=directory(RESULTS_DIR + "/QC/VADR/{sample}"),
-        temp(sum=RESULTS_DIR + "/QC/VADR/{sample}.summary.csv"),
+        sum=RESULTS_DIR + "/QC/VADR/{sample}.summary.csv"
     params:
         vadrdir=config["general"]["vadrdir"]
     conda:
@@ -207,7 +211,7 @@ rule cat_vadr:
     input:
         expand(RESULTS_DIR + "/QC/VADR/{sample}.summary.csv", sample=SAMPLES),
     output:
-        temp(summary=RESULTS_DIR + "/QC/VADR/vadr_summary.csv"),
+        summary=temp(RESULTS_DIR + "/QC/VADR/vadr_summary.csv"),
     shell:
         """
         cat {input} > {output}
@@ -223,26 +227,27 @@ rule cat_cns:
         """
         cat {input} > {output}
         """
-##### run Pangolin for Linage identification --> todo: update Pangolin regularly
+##### run Pangolin for Linage identification
+### pangolin ist installed in the BioHub envrionment --> update regularly using conda
 rule pangolin:
     input:
         RESULTS_DIR + "/Consensus/all_samples.fa",
     output:
         full=RESULTS_DIR + "/Consensus/pangolin_output.csv",
-        temp(reduced=RESULTS_DIR + "/Consensus/pangolin_output.red.csv")
+        reduced = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
     shell:
         """
         pangolin {input} --outfile {output.full}
-        sed '1d' {output.full} | cut -f 1,2,3 -d ',' > {output.reduced}
+        sed '1d' {output.full} | cut -f 1,2,5 -d ',' > {output.reduced}
         """
 
 ### create Summary
 rule cat_Stats:
     input:
-        cov=RESULTS_DIR + "/Coverage/covStats_all.txt",
-        rc=RESULTS_DIR + "/Alignment/readcount_all.txt",
-        pg=RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
-        vadr=RESULTS_DIR + "/QC/VADR/vadr_summary.csv"
+        cov = RESULTS_DIR + "/Coverage/covStats_all.txt",
+        rc = RESULTS_DIR + "/Alignment/readcount_all.txt",
+        pg = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
+        vadr = RESULTS_DIR + "/QC/VADR/vadr_summary.csv"
     output:
         out=RESULTS_DIR + "/Summary_Results.csv"
     run:
@@ -251,11 +256,23 @@ rule cat_Stats:
         from functools import reduce
         cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Breath_10", "%Breath_10", " Breath_400", "%Breath_400"])
         rc = pd.read_csv(input.rc, names=["Name", "MappedReads", "TotalReads"])
-        pg = pd.read_csv(input.pg, names=["Name", "Linage", "Propability"])
+        pg = pd.read_csv(input.pg, names=["Name", "Linage", "scorpio_call"])
         vadr = pd.read_csv(input.vadr, names=["Name", "Vadr_QC"])
         data_frames = [pg, cov, rc, vadr]
         sum = reduce(lambda  left,right: pd.merge(left,right,on=['Name'], how='outer'), data_frames)
         sum.to_csv(output.out, sep=',', encoding='utf-8', index = False, header=True, na_rep='NA')
+
+rule summary:
+    input:
+        RESULTS_DIR + "/Summary_Results.csv",
+    output:
+        CWD + "/" + RESULTS_DIR + "/summary.html",
+#    conda:
+#        "envs/flexdashboard.yaml"
+    shell:
+        """
+        Rscript -e "rmarkdown::render('Scripts/summary.Rmd', params=list(input = '{input}'),  output_file = '{output}')"
+        """
 
 ################## Variant Calling
 rule indelqual:
@@ -359,35 +376,16 @@ rule generate_md:
         sed '1i Position\tReference\tAlternative\tDepth\tAllele Frequency\tAmino acid change' | \
         sed 's/\t/,/g' |  csvtomd | sed '1i ### Mutations Spike Protein' > {output}
         """
-#
-#DATABASE is ogb/database/organisms
-#Müssen diese files im Prokka output sein? Ich glaube schon
-# Schreibe funktion csv/xslx to json!!
-#rule copy_files:
+### rule create json from csv
+rule create_json:
     input:
-        fna = RESULTS_DIR + "/Prokka/{sample}/{sample}.fna"
-        gbk = RESULTS_DIR + "/Prokka/{sample}/{sample}.gbk"
-        gff = RESULTS_DIR + "/Prokka/{sample}/{sample}.gff"
-        faa = RESULTS_DIR + "/Prokka/{sample}/{sample}.faa"
-        md = RESULTS_DIR + "/Var_annot/{sample}.md"
-        vcf = RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab"
-        #genome = GENOME_DIR + "{sample}.json" --> define file
-        #org = GENOME_DIR + "{sample}.org.json" --> define file
+        pangolin = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
     output:
-        fna = DATABASE + "/{sample}/genomes/{sample}/{sample}.fna"
-        gbk = DATABASE + "/{sample}/genomes/{sample}/{sample}.gbk"
-        gff = DATABASE + "/{sample}/genomes/{sample}/{sample}.gff"
-        faa = RDATABASE + "/{sample}/genomes/{sample}/{sample}.faa"
-        md = DATABASE + "/{sample}/genomes/{sample}/{sample}.md"
-        vcf = DATABASE + "/{sample}/genomes/{sample}/{sample}.csv"
-        #genome = DATABASE + "/{sample}/genomes/{sample}/genome.json"
-        org = DATABASE + "/{sample}/organism.json"
+         RESULTS_DIR + "/ogb/{sample}.json",
+    params:
+        genome=config["general"]["genome_json"],
+        csv=config["general"]["csv"]
     shell:
         """
-        cp {input.fna} {output.fna}
-        cp {input.gbk} {output.gbk}
-        cp {input.gff} {output.gff}
-        cp {input.faa} {output.faa}
-        cp {input.md} {output.md}
-        cp {input.vcf} {output.vcf}
+        Rscript Scripts/opengenomebrowser_csv_json.R {wildcards.sample} {params.genome} {params.csv} {input.pangolin} {output}
         """

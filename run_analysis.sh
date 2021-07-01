@@ -3,8 +3,8 @@
 #SBATCH --cpus-per-task=24
 #SBATCH --output=snakemake-%A.out
 #SBATCH --error=snakemake-%A.err
-#SBATCH --job-name=Ampli_snakemake
+#SBATCH --job-name=BioHub
 
-conda activate SARS-Airolo
+conda activate BioHub_test
 
 snakemake -j 24 --use-conda

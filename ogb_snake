@@ -1,0 +1,46 @@
+
+
+#DATABASE is ogb/database/organisms
+#Müssen diese files im Prokka output sein? Ich glaube schon
+# Schreibe funktion csv/xslx to json!!
+rule create_json:
+    params:
+        g_json: config["general"]["genome"],
+        #o_json: config["general"]["organism"]
+        tbl: config["general"]["table"],
+    output:
+        f=RESULTS_DIR + "/json/{wildcards.sample}.json",
+        dir=directory(RESULTS_DIR + "/json")
+    shell:
+        """
+        Rscript opengenomebrowser_csv_json.R
+        """
+
+rule copy_files:
+    input:
+        fna = RESULTS_DIR + "/Prokka/{sample}/{sample}.fna"
+        gbk = RESULTS_DIR + "/Prokka/{sample}/{sample}.gbk"
+        gff = RESULTS_DIR + "/Prokka/{sample}/{sample}.gff"
+        faa = RESULTS_DIR + "/Prokka/{sample}/{sample}.faa"
+        md = RESULTS_DIR + "/Var_annot/{sample}.md"
+        vcf = RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab"
+        #genome = GENOME_DIR + "{sample}.json" --> define file
+        #org = GENOME_DIR + "{sample}.org.json" --> define file
+    output:
+        fna = DATABASE + "/{sample}/genomes/{sample}/{sample}.fna"
+        gbk = DATABASE + "/{sample}/genomes/{sample}/{sample}.gbk"
+        gff = DATABASE + "/{sample}/genomes/{sample}/{sample}.gff"
+        faa = RDATABASE + "/{sample}/genomes/{sample}/{sample}.faa"
+        md = DATABASE + "/{sample}/genomes/{sample}/{sample}.md"
+        vcf = DATABASE + "/{sample}/genomes/{sample}/{sample}.csv"
+        #genome = DATABASE + "/{sample}/genomes/{sample}/genome.json"
+        #org = DATABASE + "/{sample}/organism.json"
+    shell:
+        """
+        cp {input.fna} {output.fna}
+        cp {input.gbk} {output.gbk}
+        cp {input.gff} {output.gff}
+        cp {input.faa} {output.faa}
+        cp {input.md} {output.md}
+        cp {input.vcf} {output.vcf}
+        """

@@ -9,3 +9,4 @@ snakemake-*.out
 dag.svg
 test_scripts/
 run_freebayes.sh
+test_*

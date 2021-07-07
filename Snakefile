@@ -3,7 +3,6 @@
 ## TODO: Documentation
 ## TODO: "transportable using conda envs"
 ## TODO: separate different analysis steps
-## TODO: update Pangolin incl. documentation
 ## TODO: test if triming is working with adapters as params
 configfile: "config.yaml"
 
@@ -14,21 +13,25 @@ RAW_READS = config["general"]["RAW_READS"]
 SAMPLES, = glob_wildcards((RAW_READS + "/{sample}.bam"))
 CWD=os.getcwd()
 
+##Modularisation of workflow: ogb + variant calling
+## write functions for rule all, see https://github.com/cbg-ethz/V-pipe/blob/sars-cov2/rules/common.smk
+include: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/ogb_snake"
 
 ## defines which files to output...
+## TODO: add outfiles from ogb
 rule all:
     input:
         #RESULTS_DIR + "/Alignment/readcount_all.txt",
         #RESULTS_DIR + "/Coverage/covStats_all.txt",
         #expand(RESULTS_DIR + "/Coverage/{sample}.cov", sample=SAMPLES),
-        expand(RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf", sample=SAMPLES), # do we need this file? pobably not
+        #expand(RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf", sample=SAMPLES), # do we need this file? pobably not
         expand(RESULTS_DIR + "/Var_annot/{sample}.lofreq.DP400.AF003.annot.vcf", sample=SAMPLES), # DP and AF filtered vcf, keep
         expand(RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab", sample=SAMPLES),
         expand(RESULTS_DIR + "/Var_annot/{sample}.Sprot.DP400.AF003.annot.tab", sample=SAMPLES),
         RESULTS_DIR + "/Consensus/pangolin_output.csv",
         RESULTS_DIR + "/Consensus/all_samples.fa",
         RESULTS_DIR + "/Summary_Results.csv",
-        expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
+        #expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
         expand(RESULTS_DIR + "/Var_annot/{sample}.md", sample=SAMPLES),
         expand(RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
         RESULTS_DIR + "/QC/VADR/vadr_summary.csv",
@@ -53,9 +56,9 @@ rule trimmomatic:
     input:
         RAW_READS + "/{sample}.fastq",
     output:
-        RESULTS_DIR + "/Trimming/{sample}_trimmed.fq.gz",
+        RESULTS_DIR + "/Trimming/{sample}_trimmed.fq.gz"
     params:
-        adapters=config["References"]["adapters"],
+        adapters = config["References"]["adapters"]
     threads: config["general"]["threads"]
     log: "log/trimmomatic_{sample}.log"
     shell:
@@ -142,11 +145,12 @@ rule mean_cov:
         MEAN=$(awk '{{ total += $3 }} END {{ print total/NR }}' {input})
         B10=$(awk '$3>=10' {input} | wc -l)
         B10frac=$(awk -v var1=$B10 -v var2=29903 'BEGIN {{ print  ( var1 / var2 *100 ) }}')
-        B400=$(awk '$3>=400' {input} | wc -l)
-        B400frac=$(awk -v var1=$B400 -v var2=29903 'BEGIN {{ print  ( var1 / var2 *100 ) }}')
-        combined="$SAMPLE,$MEAN,$B10,$B10frac,$B400,$B400frac"
+        combined="$SAMPLE,$MEAN,$B10,$B10frac
         echo $combined >> {output}
         """
+        #B400=$(awk '$3>=400' {input} | wc -l)
+        #B400frac=$(awk -v var1=$B400 -v var2=29903 'BEGIN {{ print  ( var1 / var2 *100 ) }}')
+        #combined="$SAMPLE,$MEAN,$B10,$B10frac,$B400,$B400frac"
 
 rule cat_cov:
     input:
@@ -158,7 +162,7 @@ rule cat_cov:
         cat {input} > {output}
         """
 
-### create consensus
+### create consensus --> use samtools as long as ivar did not update Manual (https://andersen-lab.github.io/ivar/html/manualpage.html)
 rule consensus:
     input:
         RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
@@ -228,7 +232,9 @@ rule cat_cns:
         cat {input} > {output}
         """
 ##### run Pangolin for Linage identification
-### pangolin ist installed in the BioHub envrionment --> update regularly using conda
+### pangolin ist installed in the BioHub envrionment
+### --> update regularly according to https://cov-lineages.org/pangolin_docs/updating.html
+### --> for major releases --> update BioHub environment?
 rule pangolin:
     input:
         RESULTS_DIR + "/Consensus/all_samples.fa",
@@ -254,7 +260,7 @@ rule cat_Stats:
         import pandas as pd
         import numpy as np
         from functools import reduce
-        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Breath_10", "%Breath_10", " Breath_400", "%Breath_400"])
+        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Breath_10", "Perc_Breath_10"])
         rc = pd.read_csv(input.rc, names=["Name", "MappedReads", "TotalReads"])
         pg = pd.read_csv(input.pg, names=["Name", "Linage", "scorpio_call"])
         vadr = pd.read_csv(input.vadr, names=["Name", "Vadr_QC"])
@@ -262,19 +268,22 @@ rule cat_Stats:
         sum = reduce(lambda  left,right: pd.merge(left,right,on=['Name'], how='outer'), data_frames)
         sum.to_csv(output.out, sep=',', encoding='utf-8', index = False, header=True, na_rep='NA')
 
+## TODO: test if setting of the WorkingDir is working!!
 rule summary:
     input:
         RESULTS_DIR + "/Summary_Results.csv",
     output:
         CWD + "/" + RESULTS_DIR + "/summary.html",
-#    conda:
-#        "envs/flexdashboard.yaml"
+    params:
+        wd=CWD
     shell:
         """
-        Rscript -e "rmarkdown::render('Scripts/summary.Rmd', params=list(input = '{input}'),  output_file = '{output}')"
+        Rscript -e "rmarkdown::render('Scripts/summary.Rmd', params=list(input = '{input}', dir='{params.wd}'),  output_file = '{output}')"
         """
 
 ################## Variant Calling
+### TODO: this part is optional, user can also provide Variantcalling of S5!
+## Generalize filenames
 rule indelqual:
     input:
         RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
@@ -326,66 +335,23 @@ rule filter_vcf:
         """
         #grep -v '#' {output.all} | awk '$2>21562 && $2<25385' > {output.sprot}
 
-#--> filter anot vcf! cut -f 1,2,3,4,11 -d '|' M7.lofreq.filtered.sprot.annot.vcf | sed 's/ANN=[A-Z]//' | sed 's/p\.//' | sed 's/|/\t/g' > M7.variantsS.vcf
 rule annot_vcf:
     input:
         RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf"
     output:
-        all = RESULTS_DIR + "/Var_annot/{sample}.lofreq.DP400.AF003.annot.vcf",
-        table = RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab",
-        sprot = RESULTS_DIR + "/Var_annot/{sample}.Sprot.DP400.AF003.annot.tab"
+        all = temp(RESULTS_DIR + "/Var_annot/{sample}.variants.annot.vcf"),
+        table = RESULTS_DIR + "/Var_annot/{sample}.variants.annot.tab",
+        sprot = RESULTS_DIR + "/Var_annot/{sample}.Sprotein.annot.tab"
     shell:
         """
-        snpEff ann NC_045512.2 {input} > {output.all}
-        header="CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tVariant\tEffect\tProtein\tReplacement"
-        echo -e $header >> {output.table}
-        grep -v '#' {output.all} | cut -f 1,2,3,4,11 -d '|' | sed 's/ANN=[A-Z]//' | \
-        sed 's/p\.//' | sed 's/|/\t/g' >> {output.table}
+        snpEff ann NC_045512.2 -noStats {input} > {output.all}
+        cat {output.all} | Scripts/vcfEffOnePerLine.pl | SnpSift extractFields - CHROM POS REF ALT AF DP "ANN[*].EFFECT" "ANN[*].GENE" "ANN[*].HGVS_P" | sort -nu -k 2,2 > {output.table}
+        sed -i 's/CHROM.*/CHROM\tPOS\tREF\tALT\tAF\tDP\tEFFECT\tGENE\tAA_CHANGE/' {output.table}
         cat {output.table} | awk '$2>21562 && $2<25385' > {output.sprot}
         """
-
-########### Prepare Files for Opengenomebrowser ##########
-### --> Put in a separate snakefile!
-
-## Genome annotations for opengenomebrowser
-## --> prokka is probably not the best tool. Replace!
-rule prokka:
-    input:
-        RESULTS_DIR + "/Consensus/{sample}.fa"
-    output:
-        txt=RESULTS_DIR + "/Prokka/{sample}/{sample}.txt",
-        out=directory(RESULTS_DIR + "/Prokka/{sample}"),
-    conda:
-        "envs/prokka.yaml"
-    threads: 4
-    shell:
-        """
-        prokka --kingdom Viruses --proteins References/NC_045512.2.faa --outdir {output.out} \
-        --cpus {threads} --force --prefix {wildcards.sample} --locustag {wildcards.sample} {input}
-        """
-########## Prepare data for OpenGenomeBrowser ############ --> separate snakefile?
-## Prepare markdown file with Spike Mutations --> parse vcf for nicer solution!
-rule generate_md:
-    input:
-        RESULTS_DIR + "/Var_annot/{sample}.Sprot.DP400.AF003.annot.tab"
-    output:
-         RESULTS_DIR + "/Var_annot/{sample}.md",
-    shell:
-        """
-        cat {input} | sed 's/INDEL.*;//' | sed 's/=/\t/g' | sed 's/;/\t/g' | cut -f 2,4,5,9,11,20 | \
-        sed '1i Position\tReference\tAlternative\tDepth\tAllele Frequency\tAmino acid change' | \
-        sed 's/\t/,/g' |  csvtomd | sed '1i ### Mutations Spike Protein' > {output}
-        """
-### rule create json from csv
-rule create_json:
-    input:
-        pangolin = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
-    output:
-         RESULTS_DIR + "/ogb/{sample}.json",
-    params:
-        genome=config["general"]["genome_json"],
-        csv=config["general"]["csv"]
-    shell:
-        """
-        Rscript Scripts/opengenomebrowser_csv_json.R {wildcards.sample} {params.genome} {params.csv} {input.pangolin} {output}
-        """
+        #snpEff ann NC_045512.2 {input} > {output.all}
+        #header="CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tVariant\tEffect\tProtein\tReplacement"
+        #echo -e $header >> {output.table}
+        #grep -v '#' {output.all} | cut -f 1,2,3,4,11 -d '|' | sed 's/ANN=[A-Z]//' | \
+        #sed 's/p\.//' | sed 's/|/\t/g' >> {output.table}
+        #cat {output.table} | awk '$2>21562 && $2<25385' > {output.sprot}

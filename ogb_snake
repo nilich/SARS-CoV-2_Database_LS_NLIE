@@ -1,38 +1,80 @@
 
+########### Prepare Files for Opengenomebrowser ##########
+configfile: "config.yaml"
 
-#DATABASE is ogb/database/organisms
-#Müssen diese files im Prokka output sein? Ich glaube schon
-# Schreibe funktion csv/xslx to json!!
-rule create_json:
-    params:
-        g_json: config["general"]["genome"],
-        #o_json: config["general"]["organism"]
-        tbl: config["general"]["table"],
+rule target:
+    input:
+        RESULTS_DIR + "/Alignment/readcount_all.txt",
+        expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
+        expand(RESULTS_DIR + "/Var_annot/{sample}.md", sample=SAMPLES),
+        expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
+
+
+## Genome annotations for opengenomebrowser
+## --> prokka is probably not the best tool. Replace!
+rule prokka:
+    input:
+        RESULTS_DIR + "/Consensus/{sample}.fa"
     output:
-        f=RESULTS_DIR + "/json/{wildcards.sample}.json",
-        dir=directory(RESULTS_DIR + "/json")
+        txt=RESULTS_DIR + "/Prokka/{sample}/{sample}.txt",
+        out=directory(RESULTS_DIR + "/Prokka/{sample}"),
+    conda:
+        "envs/prokka.yaml"
+    threads: 4
     shell:
         """
-        Rscript opengenomebrowser_csv_json.R
+        prokka --kingdom Viruses --proteins References/NC_045512.2.faa --outdir {output.out} \
+        --cpus {threads} --force --prefix {wildcards.sample} --locustag {wildcards.sample} {input}
         """
+########## Prepare data for OpenGenomeBrowser ############ --> separate snakefile?
+## Prepare markdown file with Spike Mutations --> parse vcf for nicer solution!
+rule generate_md:
+    input:
+        RESULTS_DIR + "/Var_annot/{sample}.Sprot.DP400.AF003.annot.tab"
+    output:
+         RESULTS_DIR + "/Var_annot/{sample}.md",
+    shell:
+        """
+        cat {input} | sed 's/INDEL.*;//' | sed 's/=/\t/g' | sed 's/;/\t/g' | cut -f 2,4,5,9,11,20 | \
+        sed '1i Position\tReference\tAlternative\tDepth\tAllele Frequency\tAmino acid change' | \
+        sed 's/\t/,/g' |  csvtomd | sed '1i ### Mutations Spike Protein' > {output}
+        """
+### rule create json from csv
+rule create_json:
+    input:
+        pangolin = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
+    output:
+         RESULTS_DIR + "/ogb/{sample}.json",
+    params:
+        genome=config["general"]["genome_json"],
+        csv=config["general"]["csv"]
+    shell:
+        """
+        Rscript Scripts/opengenomebrowser_csv_json.R {wildcards.sample} {params.genome} {params.csv} {input.pangolin} {output}
+        """
+
+
+#DATABASE is ogb/database/organisms
+#Müssen diese files im Prokka output sein? Ich glaube schon! --> ergänze
+DATABASE=RESULTS_DIR + "/ogb"
 
 rule copy_files:
     input:
-        fna = RESULTS_DIR + "/Prokka/{sample}/{sample}.fna"
-        gbk = RESULTS_DIR + "/Prokka/{sample}/{sample}.gbk"
-        gff = RESULTS_DIR + "/Prokka/{sample}/{sample}.gff"
-        faa = RESULTS_DIR + "/Prokka/{sample}/{sample}.faa"
-        md = RESULTS_DIR + "/Var_annot/{sample}.md"
-        vcf = RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab"
+        fna = RESULTS_DIR + "/Prokka/{sample}/{sample}.fna",
+        gbk = RESULTS_DIR + "/Prokka/{sample}/{sample}.gbk",
+        gff = RESULTS_DIR + "/Prokka/{sample}/{sample}.gff",
+        faa = RESULTS_DIR + "/Prokka/{sample}/{sample}.faa",
+        md = RESULTS_DIR + "/Var_annot/{sample}.md",
+        vcf = RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab",
         #genome = GENOME_DIR + "{sample}.json" --> define file
         #org = GENOME_DIR + "{sample}.org.json" --> define file
     output:
-        fna = DATABASE + "/{sample}/genomes/{sample}/{sample}.fna"
-        gbk = DATABASE + "/{sample}/genomes/{sample}/{sample}.gbk"
-        gff = DATABASE + "/{sample}/genomes/{sample}/{sample}.gff"
-        faa = RDATABASE + "/{sample}/genomes/{sample}/{sample}.faa"
-        md = DATABASE + "/{sample}/genomes/{sample}/{sample}.md"
-        vcf = DATABASE + "/{sample}/genomes/{sample}/{sample}.csv"
+        fna = DATABASE + "/{sample}/genomes/{sample}/{sample}.fna",
+        gbk = DATABASE + "/{sample}/genomes/{sample}/{sample}.gbk",
+        gff = DATABASE + "/{sample}/genomes/{sample}/{sample}.gff",
+        faa = DATABASE + "/{sample}/genomes/{sample}/{sample}.faa",
+        md = DATABASE + "/{sample}/genomes/{sample}/{sample}.md",
+        vcf = DATABASE + "/{sample}/genomes/{sample}/{sample}.csv",
         #genome = DATABASE + "/{sample}/genomes/{sample}/genome.json"
         #org = DATABASE + "/{sample}/organism.json"
     shell:

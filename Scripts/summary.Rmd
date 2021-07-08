@@ -1,17 +1,22 @@
 ---
-title: "SARS-CoV-2 Sequencing"
+title: "BioHub: SARS-CoV-2"
+author: "Nicole Liechti"
+date: "July 7, 2021"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
-    vertical_layout: fill
+  orientation: columns
+  vertical_layout: scroll
 params:
      input: ""
-    
+     wd: ""
 ---
-
-Row
+```{css}
+.chart-wrapper {
+  overflow-x: scroll;
+}
+```
+  Row
 -----------------------------------------------------------------------
-
 ```{r, echo=F, warning=F}
 #library(kableExtra)
 #library(formattable)
@@ -21,39 +26,38 @@ library(knitr)
 #library(shiny)
 library(DT)
 #args <- commandArgs(trailingOnly = TRUE)
-setwd("/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE")
+setwd(params$wd)
 
 file <- params$input
 
 d <- read.csv(file, sep = ",", header=T)
  
  DT::datatable(d, rownames = F, class = "cell-border stripe",
-   extensions = c("Buttons", "Select", "SearchPanes", "FixedColumns"),
-   selection = "none",
-   filter = "top",
-   callback = JS("$.fn.dataTable.ext.errMode = 'none';"),
-   options = list(
-     autoWidth = T,
-     dom = "Bfrt",
-     pageLength = length(d),
-     #columnDefs = list(
-     #  list(width = "140px", targets = list(0, 1, 2, 3)),
-     #  list(width = "140px", targets = list(4)),
-     #  list(width = "140x", targets = list(5, 6, 7)),
-     #  list(visible = FALSE, targets = list(10))
-     #),
-     searchHighlight = TRUE,
-     buttons = c("csv", "excel", "pdf"),
-     scrollX = 1000,
-     scrollY = 500,
-     fillContainer = TRUE,
-     scroller = TRUE,
-     # pageResize = T,
-     deferRender = TRUE,
-     scrollCollapse = T,
-     callback = JS("$.fn.dataTable.ext.errMode = 'none';")
-   ))
+              extensions = c("Buttons", "Select", "SearchPanes", "FixedColumns"),
+              selection = "none",
+              filter = "top",
+              callback = JS("$.fn.dataTable.ext.errMode = 'none';"),
+              options = list(
+                autoWidth = T,
+                dom = "Bfrt",
+                pageLength = 1000,
+                #columnDefs = list(
+                #  list(width = "140px", targets = list(0, 1, 2, 3)),
+                #  list(width = "140px", targets = list(4)),
+                #  list(width = "140x", targets = list(5, 6, 7)),
+                #  list(visible = FALSE, targets = list(10))
+                #),
+                searchHighlight = TRUE,
+                buttons = c("csv", "excel", "pdf"),
+                scrollX = "600px",
+                scrollY = "600px",
+                fillContainer = TRUE,
+                scroller = TRUE,
+                # pageResize = T,
+                deferRender = TRUE,
+                scrollCollapse = TRUE,
+                callback = JS("$.fn.dataTable.ext.errMode = 'none';")
+              ))
 
 ```
-
-[View OpenGenomeBrowser](https://www.google.com) 
+[View OpenGenomeBrowser](https://www.google.com)

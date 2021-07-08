@@ -1,0 +1,68 @@
+################## Variant Calling
+## Generalize filenames
+
+rule indelqual:
+    input:
+        RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
+    output:
+        bam=RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam",
+        idx=RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam.bai"
+    threads:
+        config["general"]["threads"]
+    shell:
+        """
+        lofreq indelqual -u 4 -o {output.bam} {input}
+        samtools index {output.bam}
+        """
+
+rule lofreq:
+    input:
+        RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam"
+    output:
+        RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf"
+    threads:
+        config["general"]["threads"]
+    params:
+        ref=config["References"]["Genome"]
+    shell:
+        """
+        lofreq call-parallel --pp-threads {threads} --call-indels -f {params.ref} -o {output} {input}
+        """
+
+rule bgzip_tabix:
+    input:
+        RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf"
+    output:
+        temp(RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf.gz"),
+    shell:
+        """
+        bgzip {input}
+        tabix {output}
+        """
+
+rule filter_vcf:
+    input:
+        RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf.gz"
+    output:
+        all=RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf",
+        #sprot=RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf"
+    shell:
+        """
+        bcftools filter -i "DP>400 & AF>0.03" {input} -o {output.all}
+        """
+        #grep -v '#' {output.all} | awk '$2>21562 && $2<25385' > {output.sprot}
+
+rule annot_vcf:
+    input:
+        RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf"
+    output:
+        all = temp(RESULTS_DIR + "/Var_annot/{sample}.variants.annot.vcf"),
+        table = RESULTS_DIR + "/Var_annot/{sample}.variants.annot.tab",
+        sprot = RESULTS_DIR + "/Var_annot/{sample}.Sprotein.annot.tab"
+    shell:
+        """
+        snpEff ann NC_045512.2 -noStats {input} > {output.all}
+        cat {output.all} | Scripts/vcfEffOnePerLine.pl | SnpSift extractFields - CHROM POS REF ALT AF DP "ANN[*].EFFECT" "ANN[*].GENE" "ANN[*].HGVS_P" | sort -nu -k 2,2 > {output.table}
+        sed -i 's/CHROM.*/CHROM\tPOS\tREF\tALT\tAF\tDP\tEFFECT\tGENE\tAA_CHANGE/' {output.table}
+        cat {output.table} | awk '$2>21562 && $2<25385' > {output.sprot}
+        """

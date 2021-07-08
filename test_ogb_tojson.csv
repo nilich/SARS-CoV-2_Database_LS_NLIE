@@ -1,7 +1,0 @@
-name,M1,swiss_P1
-isolation_date,2021-05-06,2021-05-06
-growth_condition,"vero, Passage1","vero, Passage1"
-geographical_name,Bern,Zurich
-library_preparation,S5 AmpliSeq,S5 AmpliSeq
-sequencing_tech,IonS5,IonS5
-assembly_tool,"samtools,ivar","samtools,ivar"

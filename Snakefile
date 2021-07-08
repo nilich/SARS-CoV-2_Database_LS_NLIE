@@ -3,7 +3,9 @@
 ## TODO: Documentation
 ## TODO: "transportable using conda envs"
 ## TODO: separate different analysis steps
-## TODO: test if triming is working with adapters as params
+
+import os
+import glob
 configfile: "config.yaml"
 
 # 1. Initialize Result Directory
@@ -11,32 +13,39 @@ RESULTS_DIR = config["general"]["RESULTS_DIR"]
 RAW_READS = config["general"]["RAW_READS"]
 
 SAMPLES, = glob_wildcards((RAW_READS + "/{sample}.bam"))
-CWD=os.getcwd()
+CWD=os.path.abspath(RESULTS_DIR)
 
-##Modularisation of workflow: ogb + variant calling
 ## write functions for rule all, see https://github.com/cbg-ethz/V-pipe/blob/sars-cov2/rules/common.smk
-include: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/ogb_snake"
+#include: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/ogb_snake"
+# check if vcf files are in RawReads folder, if yes, do not perform variant calling
+VCF=(glob.glob(RAW_READS + "/*.vcf"))
+if len(VCF) > 0:
+    include: "variantsS5.snake"
+if len(VCF) == 0:
+    include: "variantCalling.snake"
+
+## set variantcalling in config file!
+#if config["general"]["VariantCalling"] == "S5":
+#    include: "variantsS5.snake"
+#
+#if config["general"]["VariantCalling"] == "Custom":
+#    include: "VariantCalling.snake"
+
 
 ## defines which files to output...
 ## TODO: add outfiles from ogb
 rule all:
     input:
-        #RESULTS_DIR + "/Alignment/readcount_all.txt",
-        #RESULTS_DIR + "/Coverage/covStats_all.txt",
-        #expand(RESULTS_DIR + "/Coverage/{sample}.cov", sample=SAMPLES),
-        #expand(RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf", sample=SAMPLES), # do we need this file? pobably not
-        expand(RESULTS_DIR + "/Var_annot/{sample}.lofreq.DP400.AF003.annot.vcf", sample=SAMPLES), # DP and AF filtered vcf, keep
-        expand(RESULTS_DIR + "/Var_annot/{sample}.variants.DP400.AF003.annot.tab", sample=SAMPLES),
-        expand(RESULTS_DIR + "/Var_annot/{sample}.Sprot.DP400.AF003.annot.tab", sample=SAMPLES),
+        expand(RESULTS_DIR + "/Var_annot/{sample}.variants.annot.tab", sample=SAMPLES),
+        expand(RESULTS_DIR + "/Var_annot/{sample}.Sprotein.annot.tab", sample=SAMPLES),
         RESULTS_DIR + "/Consensus/pangolin_output.csv",
         RESULTS_DIR + "/Consensus/all_samples.fa",
-        RESULTS_DIR + "/Summary_Results.csv",
+        expand(RESULTS_DIR + "/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
+        CWD + "/summary.html",
+        ##ogb output files
+        #expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
         #expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
-        expand(RESULTS_DIR + "/Var_annot/{sample}.md", sample=SAMPLES),
-        expand(RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
-        RESULTS_DIR + "/QC/VADR/vadr_summary.csv",
-        CWD + "/" + RESULTS_DIR + "/summary.html",
-        expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
+        #expand(RESULTS_DIR + "/Var_annot/{sample}.md", sample=SAMPLES),
 
 ### bam to fastq
 rule bamTofastq:
@@ -51,7 +60,6 @@ rule bamTofastq:
         """
 
 ### trimming and Quality control
-## TODO: test if triming is working with adapters as params
 rule trimmomatic:
     input:
         RAW_READS + "/{sample}.fastq",
@@ -84,7 +92,8 @@ rule bwa_map:
         RESULTS_DIR + "/Trimming/{sample}_trimmed.fq.gz"
     output:
         aligned=temp(RESULTS_DIR + "/Alignment/{sample}.sam"),
-        sorted=RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
+        sorted=RESULTS_DIR + "/Alignment/{sample}.sorted.bam",
+        bai=RESULTS_DIR + "/Alignment/{sample}.sorted.bam.bai"
     params:
         genome=config["References"]["Genome"]
     threads: config["general"]["threads"]
@@ -145,12 +154,9 @@ rule mean_cov:
         MEAN=$(awk '{{ total += $3 }} END {{ print total/NR }}' {input})
         B10=$(awk '$3>=10' {input} | wc -l)
         B10frac=$(awk -v var1=$B10 -v var2=29903 'BEGIN {{ print  ( var1 / var2 *100 ) }}')
-        combined="$SAMPLE,$MEAN,$B10,$B10frac
+        combined="$SAMPLE,$MEAN,$B10,$B10frac"
         echo $combined >> {output}
         """
-        #B400=$(awk '$3>=400' {input} | wc -l)
-        #B400frac=$(awk -v var1=$B400 -v var2=29903 'BEGIN {{ print  ( var1 / var2 *100 ) }}')
-        #combined="$SAMPLE,$MEAN,$B10,$B10frac,$B400,$B400frac"
 
 rule cat_cov:
     input:
@@ -167,12 +173,13 @@ rule consensus:
     input:
         RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
     output:
-        RESULTS_DIR + "/Consensus/{sample}.fa"
+        seq=RESULTS_DIR + "/Consensus/{sample}.fa",
+        qual=temp(RESULTS_DIR + "/Consensus/{sample}.qual.txt")
     threads:
         config["general"]["threads"]
     shell:
         """
-        samtools mpileup -d 0 -A {input} | ivar consensus -p {output} -i {wildcards.sample} -q 20 -m 10 -n N
+        samtools mpileup -d 0 -A {input} | ivar consensus -p {output.seq} -i {wildcards.sample} -q 20 -m 10 -n N
         """
 ### run vadr for Quality Check of assembly
 ### you need to install the VADR locally and set the path to the vadr installation in the config file
@@ -180,10 +187,10 @@ rule vadr:
     input:
         RESULTS_DIR + "/Consensus/{sample}.fa"
     output:
-        trimmed=temp(RESULTS_DIR + "/QC/VADR/{sample}.tr.fa"),
-        alt=RESULTS_DIR + "/QC/VADR/{sample}/{sample}.vadr.alt.list",
-        dir=directory(RESULTS_DIR + "/QC/VADR/{sample}"),
-        sum=RESULTS_DIR + "/QC/VADR/{sample}.summary.csv"
+        trimmed=temp(RESULTS_DIR + "/VADR/{sample}.tr.fa"),
+        alt=RESULTS_DIR + "/VADR/{sample}/{sample}.vadr.alt.list",
+        dir=directory(RESULTS_DIR + "/VADR/{sample}"),
+        sum=RESULTS_DIR + "/VADR/{sample}.summary.csv"
     params:
         vadrdir=config["general"]["vadrdir"]
     conda:
@@ -213,9 +220,9 @@ rule vadr:
 ## get vadr summary Pass, failed
 rule cat_vadr:
     input:
-        expand(RESULTS_DIR + "/QC/VADR/{sample}.summary.csv", sample=SAMPLES),
+        expand(RESULTS_DIR + "/VADR/{sample}.summary.csv", sample=SAMPLES),
     output:
-        summary=temp(RESULTS_DIR + "/QC/VADR/vadr_summary.csv"),
+        summary=temp(RESULTS_DIR + "/VADR/vadr_summary.csv"),
     shell:
         """
         cat {input} > {output}
@@ -253,9 +260,9 @@ rule cat_Stats:
         cov = RESULTS_DIR + "/Coverage/covStats_all.txt",
         rc = RESULTS_DIR + "/Alignment/readcount_all.txt",
         pg = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
-        vadr = RESULTS_DIR + "/QC/VADR/vadr_summary.csv"
+        vadr = RESULTS_DIR + "/VADR/vadr_summary.csv"
     output:
-        out=RESULTS_DIR + "/Summary_Results.csv"
+        out=CWD + "/Summary_Results.csv"
     run:
         import pandas as pd
         import numpy as np
@@ -271,87 +278,12 @@ rule cat_Stats:
 ## TODO: test if setting of the WorkingDir is working!!
 rule summary:
     input:
-        RESULTS_DIR + "/Summary_Results.csv",
+        CWD + "/Summary_Results.csv"
     output:
-        CWD + "/" + RESULTS_DIR + "/summary.html",
+        CWD + "/summary.html",
     params:
         wd=CWD
     shell:
         """
-        Rscript -e "rmarkdown::render('Scripts/summary.Rmd', params=list(input = '{input}', dir='{params.wd}'),  output_file = '{output}')"
+        Rscript -e "rmarkdown::render('Scripts/summary.Rmd', params=list(input = '{input}', wd='{params.wd}'),  output_file = '{output}')"
         """
-
-################## Variant Calling
-### TODO: this part is optional, user can also provide Variantcalling of S5!
-## Generalize filenames
-rule indelqual:
-    input:
-        RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
-    output:
-        temp(RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam"),
-        temp(RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam.bai")
-    threads:
-        config["general"]["threads"]
-    shell:
-        """
-        lofreq indelqual -u 4 -o {output} {input}
-        samtools index {output}
-        """
-
-rule lofreq:
-    input:
-        RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam"
-    output:
-        RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf"
-    threads:
-        config["general"]["threads"]
-    params:
-        ref=config["References"]["Genome"]
-    shell:
-        """
-        lofreq call-parallel --pp-threads {threads} --call-indels -f {params.ref} -o {output} {input}
-        """
-
-rule bgzip_tabix:
-    input:
-        RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf"
-    output:
-        temp(RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf.gz"),
-    shell:
-        """
-        bgzip {input}
-        tabix {output}
-        """
-
-rule filter_vcf:
-    input:
-        RESULTS_DIR + "/LoFreq/{sample}.lofreq.vcf.gz"
-    output:
-        all=RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf",
-        #sprot=RESULTS_DIR + "/LoFreq/{sample}.filtered.Sprot.vcf"
-    shell:
-        """
-        bcftools filter -i "DP>400 & AF>0.03" {input} -o {output.all}
-        """
-        #grep -v '#' {output.all} | awk '$2>21562 && $2<25385' > {output.sprot}
-
-rule annot_vcf:
-    input:
-        RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf"
-    output:
-        all = temp(RESULTS_DIR + "/Var_annot/{sample}.variants.annot.vcf"),
-        table = RESULTS_DIR + "/Var_annot/{sample}.variants.annot.tab",
-        sprot = RESULTS_DIR + "/Var_annot/{sample}.Sprotein.annot.tab"
-    shell:
-        """
-        snpEff ann NC_045512.2 -noStats {input} > {output.all}
-        cat {output.all} | Scripts/vcfEffOnePerLine.pl | SnpSift extractFields - CHROM POS REF ALT AF DP "ANN[*].EFFECT" "ANN[*].GENE" "ANN[*].HGVS_P" | sort -nu -k 2,2 > {output.table}
-        sed -i 's/CHROM.*/CHROM\tPOS\tREF\tALT\tAF\tDP\tEFFECT\tGENE\tAA_CHANGE/' {output.table}
-        cat {output.table} | awk '$2>21562 && $2<25385' > {output.sprot}
-        """
-        #snpEff ann NC_045512.2 {input} > {output.all}
-        #header="CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tVariant\tEffect\tProtein\tReplacement"
-        #echo -e $header >> {output.table}
-        #grep -v '#' {output.all} | cut -f 1,2,3,4,11 -d '|' | sed 's/ANN=[A-Z]//' | \
-        #sed 's/p\.//' | sed 's/|/\t/g' >> {output.table}
-        #cat {output.table} | awk '$2>21562 && $2<25385' > {output.sprot}

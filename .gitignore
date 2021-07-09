@@ -1,6 +1,6 @@
 .snakemake/
 Reads/
-Results/
+Results*/
 log/
 GISAID_genomes/
 .Rhistory
@@ -10,5 +10,3 @@ dag.svg
 test_scripts/
 run_freebayes.sh
 test_*
-Results_old/
-Reads_S5_test

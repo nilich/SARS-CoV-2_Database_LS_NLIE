@@ -2,7 +2,6 @@
 
 ## TODO: Documentation
 ## TODO: "transportable using conda envs"
-## TODO: separate different analysis steps
 
 import os
 import glob
@@ -24,7 +23,7 @@ if len(VCF) > 0:
 if len(VCF) == 0:
     include: "variantCalling.snake"
 
-## set variantcalling in config file!
+## set variantcalling in config file
 #if config["general"]["VariantCalling"] == "S5":
 #    include: "variantsS5.snake"
 #
@@ -36,16 +35,17 @@ if len(VCF) == 0:
 ## TODO: add outfiles from ogb
 rule all:
     input:
-        expand(RESULTS_DIR + "/Var_annot/{sample}.variants.annot.tab", sample=SAMPLES),
-        expand(RESULTS_DIR + "/Var_annot/{sample}.Sprotein.annot.tab", sample=SAMPLES),
+        expand(RESULTS_DIR + "/VariantAnnotation/{sample}.variants.annot.tab", sample=SAMPLES),
+        expand(RESULTS_DIR + "/VariantAnnotation/{sample}.Sprotein.annot.tab", sample=SAMPLES),
         RESULTS_DIR + "/Consensus/pangolin_output.csv",
-        RESULTS_DIR + "/Consensus/all_samples.fa",
+        RESULTS_DIR + "/Consensus/allSequences.fasta",
         expand(RESULTS_DIR + "/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
         CWD + "/summary.html",
+        expand(RESULTS_DIR + "/Consensus/{sample}.N.txt", sample=SAMPLES),
         ##ogb output files
         #expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
         #expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
-        #expand(RESULTS_DIR + "/Var_annot/{sample}.md", sample=SAMPLES),
+        #expand(RESULTS_DIR + "/VariantAnnotation/{sample}.md", sample=SAMPLES),
 
 ### bam to fastq
 rule bamTofastq:
@@ -181,6 +181,30 @@ rule consensus:
         """
         samtools mpileup -d 0 -A {input} | ivar consensus -p {output.seq} -i {wildcards.sample} -q 20 -m 10 -n N
         """
+
+## get % Ns per Seq
+rule get_N:
+    input:
+        RESULTS_DIR + "/Consensus/{sample}.fa",
+    output:
+        temp(RESULTS_DIR + "/Consensus/{sample}.N.txt")
+    threads:
+        config["general"]["threads"]
+    shell:
+        """
+        python Scripts/get_Ns.py -i {input} -s {wildcards.sample} -o {output}
+        """
+
+rule cat_N:
+    input:
+        expand(RESULTS_DIR + "/Consensus/{sample}.N.txt", sample=SAMPLES),
+    output:
+        temp(RESULTS_DIR + "/Consensus/Ns_all.txt"),
+    shell:
+        """
+        cat {input} > {output}
+        """
+
 ### run vadr for Quality Check of assembly
 ### you need to install the VADR locally and set the path to the vadr installation in the config file
 rule vadr:
@@ -217,6 +241,7 @@ rule vadr:
 
         if [[ $(grep -vc '#' {output.alt}) > 1 ]]; then echo "{wildcards.sample},FAILED" >> {output.sum} ; else echo "{wildcards.sample},PASSED" >> {output.sum}; fi
         """
+
 ## get vadr summary Pass, failed
 rule cat_vadr:
     input:
@@ -233,7 +258,7 @@ rule cat_cns:
     input:
         expand(RESULTS_DIR + "/Consensus/{sample}.fa", sample=SAMPLES),
     output:
-        temp(RESULTS_DIR + "/Consensus/all_samples.fa"),
+        RESULTS_DIR + "/Consensus/allSequences.fasta",
     shell:
         """
         cat {input} > {output}
@@ -244,7 +269,7 @@ rule cat_cns:
 ### --> for major releases --> update BioHub environment?
 rule pangolin:
     input:
-        RESULTS_DIR + "/Consensus/all_samples.fa",
+        RESULTS_DIR + "/Consensus/allSequences.fasta",
     output:
         full=RESULTS_DIR + "/Consensus/pangolin_output.csv",
         reduced = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
@@ -260,18 +285,20 @@ rule cat_Stats:
         cov = RESULTS_DIR + "/Coverage/covStats_all.txt",
         rc = RESULTS_DIR + "/Alignment/readcount_all.txt",
         pg = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
-        vadr = RESULTS_DIR + "/VADR/vadr_summary.csv"
+        vadr = RESULTS_DIR + "/VADR/vadr_summary.csv",
+        n = RESULTS_DIR + "/Consensus/Ns_all.txt",
     output:
         out=CWD + "/Summary_Results.csv"
     run:
         import pandas as pd
         import numpy as np
         from functools import reduce
-        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Breath_10", "Perc_Breath_10"])
+        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Coverage_min10", "Perc_Coverage_min10"])
         rc = pd.read_csv(input.rc, names=["Name", "MappedReads", "TotalReads"])
-        pg = pd.read_csv(input.pg, names=["Name", "Linage", "scorpio_call"])
+        pg = pd.read_csv(input.pg, names=["Name", "PangoLinage", "WHOLinage"])
         vadr = pd.read_csv(input.vadr, names=["Name", "Vadr_QC"])
-        data_frames = [pg, cov, rc, vadr]
+        n = pd.read_csv(input.n, names=["Name", "Perc_N"])
+        data_frames = [pg, cov, rc, n, vadr]
         sum = reduce(lambda  left,right: pd.merge(left,right,on=['Name'], how='outer'), data_frames)
         sum.to_csv(output.out, sep=',', encoding='utf-8', index = False, header=True, na_rep='NA')
 

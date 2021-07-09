@@ -1,5 +1,5 @@
 .snakemake/
-Reads/
+Reads*/
 Results*/
 log/
 GISAID_genomes/

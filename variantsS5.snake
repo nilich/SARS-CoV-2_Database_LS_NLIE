@@ -3,9 +3,9 @@ rule annot_S5_vcf:
     input:
         RAW_READS + "/{sample}.vcf"
     output:
-        all = temp(RESULTS_DIR + "/Var_annot/{sample}.variants.annot.vcf"),
-        table = RESULTS_DIR + "/Var_annot/{sample}.variants.annot.tab",
-        sprot = RESULTS_DIR + "/Var_annot/{sample}.Sprotein.annot.tab"
+        all = temp(RESULTS_DIR + "/VariantAnnotation/{sample}.variants.annot.vcf"),
+        table = RESULTS_DIR + "/VariantAnnotation/{sample}.variants.annot.tab",
+        sprot = RESULTS_DIR + "/VariantAnnotation/{sample}.Sprotein.annot.tab"
     shell:
         """
         sed 's/2019-nCoV/NC_045512.2/g' {input} | snpEff ann NC_045512.2 -noStats - > {output.all}

@@ -1,31 +1,34 @@
 ---
 title: "BioHub: SARS-CoV-2"
 author: "Nicole Liechti"
-date: "July 7, 2021"
+date: "v1.0"
 output: 
   flexdashboard::flex_dashboard:
-  orientation: columns
-  vertical_layout: scroll
+  orientation: rows
 params:
      input: ""
      wd: ""
 ---
-```{css}
-.chart-wrapper {
-  overflow-x: scroll;
-}
-```
-  Row
------------------------------------------------------------------------
+
+# Sidebar {.sidebar}
 ```{r, echo=F, warning=F}
-#library(kableExtra)
-#library(formattable)
-#library(dplyr)
-#library(flexdashboard)
+path=paste(params$wd, "/Consensus/M3.fa", sep ="")
+```
+
+
+* [Download Sequences](`r paste(params$wd, "/Consensus/allSequences.fasta", sep ="")`)
+
+* [View Nextclade](https://clades.nextstrain.org/){target="_blank"}
+
+
+# Overview
+
+
+```{r, echo=F, warning=F}
+
 library(knitr)
-#library(shiny)
 library(DT)
-#args <- commandArgs(trailingOnly = TRUE)
+
 setwd(params$wd)
 
 file <- params$input
@@ -38,26 +41,19 @@ d <- read.csv(file, sep = ",", header=T)
               filter = "top",
               callback = JS("$.fn.dataTable.ext.errMode = 'none';"),
               options = list(
-                autoWidth = T,
+                #autoWidth = T,
                 dom = "Bfrt",
                 pageLength = 1000,
-                #columnDefs = list(
-                #  list(width = "140px", targets = list(0, 1, 2, 3)),
-                #  list(width = "140px", targets = list(4)),
-                #  list(width = "140x", targets = list(5, 6, 7)),
-                #  list(visible = FALSE, targets = list(10))
-                #),
-                searchHighlight = TRUE,
+                searchHighlight = T,
                 buttons = c("csv", "excel", "pdf"),
-                scrollX = "600px",
+                #scrollX = "400px",
                 scrollY = "600px",
-                fillContainer = TRUE,
-                scroller = TRUE,
-                # pageResize = T,
-                deferRender = TRUE,
-                scrollCollapse = TRUE,
+                #fillContainer = TRUE,
+                scroller = T,
+                #pageResize = T,
+                deferRender = T,
+                scrollCollapse = T,
                 callback = JS("$.fn.dataTable.ext.errMode = 'none';")
               ))
 
 ```
-[View OpenGenomeBrowser](https://www.google.com)

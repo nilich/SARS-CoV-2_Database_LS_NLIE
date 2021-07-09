@@ -56,9 +56,9 @@ rule annot_vcf:
     input:
         RESULTS_DIR + "/LoFreq/{sample}.lofreq.DP400.AF003.vcf"
     output:
-        all = temp(RESULTS_DIR + "/Var_annot/{sample}.variants.annot.vcf"),
-        table = RESULTS_DIR + "/Var_annot/{sample}.variants.annot.tab",
-        sprot = RESULTS_DIR + "/Var_annot/{sample}.Sprotein.annot.tab"
+        all = temp(RESULTS_DIR + "/VariantAnnotation/{sample}.variants.annot.vcf"),
+        table = RESULTS_DIR + "/VariantAnnotation/{sample}.variants.annot.tab",
+        sprot = RESULTS_DIR + "/VariantAnnotation/{sample}.Sprotein.annot.tab"
     shell:
         """
         snpEff ann NC_045512.2 -noStats {input} > {output.all}

@@ -1,7 +1,6 @@
 ### Pipeline for the analysis of SARS-CoV-2 AmpliSeq Data
 
 ## TODO: Documentation
-## TODO: "transportable using conda envs"
 
 import os
 import glob
@@ -16,7 +15,9 @@ CWD=os.path.abspath(RESULTS_DIR)
 
 ## write functions for rule all, see https://github.com/cbg-ethz/V-pipe/blob/sars-cov2/rules/common.smk
 #include: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/ogb_snake"
+
 # check if vcf files are in RawReads folder, if yes, do not perform variant calling
+# does not work if samples with and without vcf files are in the same folder!
 VCF=(glob.glob(RAW_READS + "/*.vcf"))
 if len(VCF) > 0:
     include: "variantsS5.snake"
@@ -288,12 +289,12 @@ rule cat_Stats:
         vadr = RESULTS_DIR + "/VADR/vadr_summary.csv",
         n = RESULTS_DIR + "/Consensus/Ns_all.txt",
     output:
-        out=CWD + "/Summary_Results.csv"
+        out=temp(CWD + "/Summary_Results.csv")
     run:
         import pandas as pd
         import numpy as np
         from functools import reduce
-        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Coverage_min10", "Perc_Coverage_min10"])
+        cov = pd.read_csv(input.cov, names=["Name", "Mean_Coverage", "Coverage_minDP10", "Perc_Coverage_minDP10"])
         rc = pd.read_csv(input.rc, names=["Name", "MappedReads", "TotalReads"])
         pg = pd.read_csv(input.pg, names=["Name", "PangoLinage", "WHOLinage"])
         vadr = pd.read_csv(input.vadr, names=["Name", "Vadr_QC"])
@@ -302,7 +303,7 @@ rule cat_Stats:
         sum = reduce(lambda  left,right: pd.merge(left,right,on=['Name'], how='outer'), data_frames)
         sum.to_csv(output.out, sep=',', encoding='utf-8', index = False, header=True, na_rep='NA')
 
-## TODO: test if setting of the WorkingDir is working!!
+## add link to variant table in Summary?
 rule summary:
     input:
         CWD + "/Summary_Results.csv"

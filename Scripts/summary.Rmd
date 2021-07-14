@@ -46,7 +46,7 @@ colnames(d) <- c("Name","PangoLinage", "WHOLinage", "Mean_Coverage", "Coverage_m
                 dom = "Bfrt",
                 pageLength = 1000,
                 searchHighlight = T,
-                buttons = c("csv", "excel", "pdf"),
+                buttons = c("csv", "excel"),
                 #scrollX = "400px",
                 scrollY = "600px",
                 #fillContainer = TRUE,

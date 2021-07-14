@@ -2,13 +2,15 @@
 ## specify your read directory (bam files) and the location of the results directory here:
 
 general:
-  RAW_READS: "Reads"
-  RESULTS_DIR: "Results_S5_test"
+  RAW_READS: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/Reads_S5_test/test_data"
+  RESULTS_DIR: "Results_test"
   threads: 4
   vadrdir: "/software/QC/VADR" # path to your local vadr installation
+  VariantCalling: "S5" # "S5 or Custom"
+  Consensus: "S5"
+  ##Parameters foor ogb
   #genome_json: "Scripts/genome.json"
   #csv: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/test_ogb_tojson.csv"
-  #VariantCalling: "S5" # "S5 or Custom"
 
 References:
   adapters: "References/IonXpress_bc_adapter_seq_1_96.fa"

@@ -18,18 +18,24 @@ CWD=os.path.abspath(RESULTS_DIR)
 
 # check if vcf files are in RawReads folder, if yes, do not perform variant calling
 # does not work if samples with and without vcf files are in the same folder!
-VCF=(glob.glob(RAW_READS + "/*.vcf"))
-if len(VCF) > 0:
-    include: "variantsS5.snake"
-if len(VCF) == 0:
-    include: "variantCalling.snake"
+#VCF=(glob.glob(RAW_READS + "/*.vcf"))
+#if len(VCF) > 0:
+#    include: "variantsS5.snake"
+#if len(VCF) == 0:
+#    include: "variantCalling.snake"
 
 ## set variantcalling in config file
-#if config["general"]["VariantCalling"] == "S5":
-#    include: "variantsS5.snake"
-#
-#if config["general"]["VariantCalling"] == "Custom":
-#    include: "VariantCalling.snake"
+if config["general"]["VariantCalling"] == "S5":
+    include: "variantsS5.snake"
+
+if config["general"]["VariantCalling"] == "Custom":
+    include: "variantCalling.snake"
+# set computation of Consensus Sequence in config file:
+if config["general"]["VariantCalling"] == "S5":
+    include: "variantsS5.snake"
+
+if config["general"]["VariantCalling"] == "Custom":
+    include: "variantCalling.snake"
 
 
 ## defines which files to output...

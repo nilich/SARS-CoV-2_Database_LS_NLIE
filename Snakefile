@@ -30,12 +30,13 @@ if config["general"]["VariantCalling"] == "S5":
 
 if config["general"]["VariantCalling"] == "Custom":
     include: "variantCalling.snake"
-# set computation of Consensus Sequence in config file:
-if config["general"]["VariantCalling"] == "S5":
-    include: "variantsS5.snake"
 
-if config["general"]["VariantCalling"] == "Custom":
-    include: "variantCalling.snake"
+# set computation of Consensus Sequence in config file:
+#if config["general"]["VariantCalling"] == "S5":
+#    include: "consensusS5.snake"
+
+#if config["general"]["VariantCalling"] == "Custom":
+#    include: "consensusIvar.snake"
 
 
 ## defines which files to output...
@@ -94,6 +95,7 @@ rule fastqc:
         """
 
 ### Alignment
+##TODO add bwa index!! --> can be downloaded...
 rule bwa_map:
     input:
         RESULTS_DIR + "/Trimming/{sample}_trimmed.fq.gz"
@@ -214,6 +216,8 @@ rule cat_N:
 
 ### run vadr for Quality Check of assembly
 ### you need to install the VADR locally and set the path to the vadr installation in the config file
+## option -r replaces stretches tretches of Ns in the input sequences with the expected nucleotides from the RefSeq
+##  remove this option?
 rule vadr:
     input:
         RESULTS_DIR + "/Consensus/{sample}.fa"
@@ -221,9 +225,10 @@ rule vadr:
         trimmed=temp(RESULTS_DIR + "/VADR/{sample}.tr.fa"),
         alt=RESULTS_DIR + "/VADR/{sample}/{sample}.vadr.alt.list",
         dir=directory(RESULTS_DIR + "/VADR/{sample}"),
-        sum=RESULTS_DIR + "/VADR/{sample}.summary.csv"
+        sum=temp(RESULTS_DIR + "/VADR/{sample}.summary.csv")
     params:
         vadrdir=config["general"]["vadrdir"]
+        vadrmdir=config["general"]["vadrmdir"]
     conda:
         "envs/vadr.yaml"
     shell:
@@ -242,8 +247,8 @@ rule vadr:
         export PATH="$VADRSCRIPTSDIR":"$PATH"
 
         perl $VADRSCRIPTSDIR/miniscripts/fasta-trim-terminal-ambigs.pl --minlen 50 --maxlen 30000 {input} > {output.trimmed}
-        v-annotate.pl -f --split --cpu 8 --glsearch -s -r --nomisc --mkey sarscov2 --lowsim5term 2 --lowsim3term 2 \
-        --alt_fail lowscore,fstukcnf,insertnn,deletinn --mdir /mnt/nfs/bio/software/QC/VADR/vadr-models-sarscov2-1.2-2 \
+        v-annotate.pl -f --split --cpu 8 --glsearch -s --nomisc --mkey sarscov2 --lowsim5term 2 --lowsim3term 2 \
+        --alt_fail lowscore,fstukcnf,insertnn,deletinn --mdir  {params.vadrmdir} \
         {output.trimmed} {output.dir}
 
         if [[ $(grep -vc '#' {output.alt}) > 1 ]]; then echo "{wildcards.sample},FAILED" >> {output.sum} ; else echo "{wildcards.sample},PASSED" >> {output.sum}; fi

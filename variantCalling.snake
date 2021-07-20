@@ -1,5 +1,4 @@
 ################## Variant Calling
-## Generalize filenames
 
 rule indelqual:
     input:

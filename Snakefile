@@ -31,6 +31,7 @@ if config["general"]["VariantCalling"] == "S5":
 if config["general"]["VariantCalling"] == "Custom":
     include: "variantCalling.snake"
 
+##TODO: implement consensus calling from S5!
 # set computation of Consensus Sequence in config file:
 #if config["general"]["VariantCalling"] == "S5":
 #    include: "consensusS5.snake"
@@ -227,7 +228,7 @@ rule vadr:
         dir=directory(RESULTS_DIR + "/VADR/{sample}"),
         sum=temp(RESULTS_DIR + "/VADR/{sample}.summary.csv")
     params:
-        vadrdir=config["general"]["vadrdir"]
+        vadrdir=config["general"]["vadrdir"],
         vadrmdir=config["general"]["vadrmdir"]
     conda:
         "envs/vadr.yaml"

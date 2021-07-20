@@ -5,6 +5,6 @@
 #SBATCH --error=snakemake-%A.err
 #SBATCH --job-name=BioHub
 
-conda activate BioHub
+conda activate BioHub_test2
 
 snakemake -j 32 --use-conda

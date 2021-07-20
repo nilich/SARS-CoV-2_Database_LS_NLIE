@@ -50,7 +50,7 @@ rule all:
         RESULTS_DIR + "/Consensus/allSequences.fasta",
         expand(RESULTS_DIR + "/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
         CWD + "/summary.html",
-        expand(RESULTS_DIR + "/Consensus/{sample}.N.txt", sample=SAMPLES),
+        #expand(RESULTS_DIR + "/Consensus/{sample}.N.txt", sample=SAMPLES),
         ##ogb output files
         #expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
         #expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),

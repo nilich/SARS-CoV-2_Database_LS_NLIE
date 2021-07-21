@@ -5,7 +5,7 @@ general:
   RAW_READS: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/Reads"
   RESULTS_DIR: "Results"
   threads: 4
-  vadrdir: "/software/QC/VADR" # path to your local vadr installation
+  vadrdir: "/mnt/nfs/bio/software/QC/VADR/" # path to your local vadr installation
   vadrmdir: "/mnt/nfs/bio/software/QC/VADR/vadr-models-sarscov2-1.2-2" # vadr model dir
   VariantCalling: "S5" # "S5 or Custom"
   Consensus: "S5"

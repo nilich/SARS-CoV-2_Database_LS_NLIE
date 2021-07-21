@@ -249,7 +249,7 @@ rule vadr:
 
         perl $VADRSCRIPTSDIR/miniscripts/fasta-trim-terminal-ambigs.pl --minlen 50 --maxlen 30000 {input} > {output.trimmed}
         v-annotate.pl -f --split --cpu 8 --glsearch -s --nomisc --mkey sarscov2 --lowsim5term 2 --lowsim3term 2 \
-        --alt_fail lowscore,fstukcnf,insertnn,deletinn --mdir  {params.vadrmdir} \
+        --alt_fail lowscore,fstukcnf,insertnn,deletinn --mdir {params.vadrmdir} \
         {output.trimmed} {output.dir}
 
         if [[ $(grep -vc '#' {output.alt}) > 1 ]]; then echo "{wildcards.sample},FAILED" >> {output.sum} ; else echo "{wildcards.sample},PASSED" >> {output.sum}; fi

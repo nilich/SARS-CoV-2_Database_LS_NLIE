@@ -8,6 +8,7 @@ rule annot_S5_vcf:
         sprot = RESULTS_DIR + "/VariantAnnotation/{sample}.Sprotein.annot.tab"
     shell:
         """
+        snpEff download NC_045512.2
         sed 's/2019-nCoV/NC_045512.2/g' {input} | snpEff ann NC_045512.2 -noStats - > {output.all}
         cat {output.all} | Scripts/vcfEffOnePerLine.pl | SnpSift extractFields - CHROM POS REF ALT AF DP "ANN[*].EFFECT" "ANN[*].GENE" "ANN[*].HGVS_P" | sort -nu -k 2,2 > {output.table}
         sed -i 's/CHROM.*/CHROM\tPOS\tREF\tALT\tAF\tDP\tEFFECT\tGENE\tAA_CHANGE/' {output.table}

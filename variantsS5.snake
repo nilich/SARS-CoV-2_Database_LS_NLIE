@@ -1,4 +1,5 @@
 ## Annotation of the S5 Variants
+## TODO: S5 vcfs can contains human control variants! Remove these from vcf using grep -v
 rule annot_S5_vcf:
     input:
         RAW_READS + "/{sample}.vcf"

@@ -1,0 +1,17 @@
+## Get Consensus Sequences of the S5
+CNS_DIR = config["general"]["CNS_DIR"]
+
+BATCHES = glob_wildcards((CNS_DIR + "/{batch}.fasta"))
+
+rule cat_fastas:
+    input:
+        expand(CNS_DIR + "/{batch}.fasta", batch=BATCHES)
+    output:
+        temp(RESULTS_DIR + "/Consensus/all.fasta")
+    shell:
+        """
+        cat {input} > {output}
+        """
+rule get_fasta:
+    input:
+        RESULTS_DIR + "/Consensus/all.fasta"

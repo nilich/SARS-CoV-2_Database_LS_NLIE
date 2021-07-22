@@ -6,10 +6,12 @@ channels:
   - r
 dependencies:
   - pip=19.3.1=py38_0
+  - rename
   - minimap2
   - gofasta
   - usher
   - samtools=1.12=h9aed4be_1
+  - bcftools=1.12
   - trimmomatic=0.39=hdfd78af_2
   - fastqc=0.11.9=hdfd78af_1
   - bwa=0.7.17=h5bf99c6_8

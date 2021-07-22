@@ -36,8 +36,8 @@ if config["general"]["VariantCalling"] == "Custom":
 #if config["general"]["VariantCalling"] == "S5":
 #    include: "consensusS5.snake"
 
-#if config["general"]["VariantCalling"] == "Custom":
-#    include: "consensusIvar.snake"
+if config["general"]["VariantCalling"] == "Custom":
+    include: "consensusIvar.snake"
 
 
 ## defines which files to output...
@@ -176,20 +176,6 @@ rule cat_cov:
     shell:
         """
         cat {input} > {output}
-        """
-
-### create consensus --> use samtools as long as ivar did not update Manual (https://andersen-lab.github.io/ivar/html/manualpage.html)
-rule consensus:
-    input:
-        RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
-    output:
-        seq=RESULTS_DIR + "/Consensus/{sample}.fa",
-        qual=temp(RESULTS_DIR + "/Consensus/{sample}.qual.txt")
-    threads:
-        config["general"]["threads"]
-    shell:
-        """
-        samtools mpileup -d 0 -A {input} | ivar consensus -p {output.seq} -i {wildcards.sample} -q 20 -m 10 -n N
         """
 
 ## get % Ns per Seq

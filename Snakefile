@@ -96,7 +96,7 @@ rule fastqc:
         """
 
 ### Alignment
-##TODO add bwa index!! --> can be downloaded...
+## bwa index is in reference folder, add indexing step?
 rule bwa_map:
     input:
         RESULTS_DIR + "/Trimming/{sample}_trimmed.fq.gz"
@@ -202,9 +202,8 @@ rule cat_N:
         """
 
 ### run vadr for Quality Check of assembly
-### you need to install the VADR locally and set the path to the vadr installation in the config file
-## option -r replaces stretches tretches of Ns in the input sequences with the expected nucleotides from the RefSeq
-##  remove this option?
+### VADR is installed on the nfs, use this version or install it locally
+### and set the path to the vadr installation in the config file
 rule vadr:
     input:
         RESULTS_DIR + "/Consensus/{sample}.fa"
@@ -262,6 +261,7 @@ rule cat_cns:
         """
         cat {input} > {output}
         """
+
 ##### run Pangolin for Linage identification
 ### pangolin ist installed in the BioHub envrionment
 ### --> update regularly according to https://cov-lineages.org/pangolin_docs/updating.html
@@ -278,6 +278,32 @@ rule pangolin:
         sed '1d' {output.full} | cut -f 1,2,5 -d ',' > {output.reduced}
         """
 
+#### Count variants
+rule count_var:
+    input:
+        RESULTS_DIR + "/VariantAnnotation/{sample}.variants.annot.tab",
+    output:
+        temp(RESULTS_DIR + "/VariantAnnotation/{sample}.countVar.txt"),
+    shell:
+        """
+        SAMPLE={wildcards.sample}
+        HOMO=$(awk '$5>=0.5{{c++}} END{{print c+0}}' {input})
+        HET=$(awk '$5<0.5{{c++}} END{{print c+0}}' {input})
+        FUR=$(cut -f 12,12 {input} | grep -c '68[1-6]')
+        combined="$SAMPLE,$HOMO,$HET,$FUR"
+        echo $combined >> {output}
+        """
+
+rule cat_count:
+    input:
+        expand(RESULTS_DIR + "/VariantAnnotation/{sample}.countVar.txt", sample=SAMPLES),
+    output:
+        temp(RESULTS_DIR + "/VariantAnnotation/counts_Var.txt"),
+    shell:
+        """
+        cat {input} > {output}
+        """
+
 ### create Summary
 rule cat_Stats:
     input:
@@ -286,6 +312,7 @@ rule cat_Stats:
         pg = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
         vadr = RESULTS_DIR + "/VADR/vadr_summary.csv",
         n = RESULTS_DIR + "/Consensus/Ns_all.txt",
+        var = RESULTS_DIR + "/VariantAnnotation/counts_Var.txt",
     output:
         out=temp(CWD + "/Summary_Results.csv")
     run:
@@ -297,7 +324,8 @@ rule cat_Stats:
         pg = pd.read_csv(input.pg, names=["Name", "PangoLinage", "WHOLinage"])
         vadr = pd.read_csv(input.vadr, names=["Name", "Vadr_QC"])
         n = pd.read_csv(input.n, names=["Name", "Perc_N"])
-        data_frames = [pg, cov, rc, n, vadr]
+        var = pd.read_csv(input.var, names=["Name", "Variants Homozygot", "Variants Heterozygot", "Mutation_PRRARS"])
+        data_frames = [pg, cov, rc, n, vadr, var]
         sum = reduce(lambda  left,right: pd.merge(left,right,on=['Name'], how='outer'), data_frames)
         sum.to_csv(output.out, sep=',', encoding='utf-8', index = False, header=True, na_rep='NA')
 

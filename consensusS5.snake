@@ -12,6 +12,13 @@ rule cat_fastas:
         """
         cat {input} > {output}
         """
+
 rule get_fasta:
     input:
         RESULTS_DIR + "/Consensus/all.fasta"
+    output:
+        RESULTS_DIR + "/Consensus/{sample}.fa"
+    shell:
+    """
+    python Scripts/get_seq.py -i {input} -id {wildcards.sample} -o {output}
+    """

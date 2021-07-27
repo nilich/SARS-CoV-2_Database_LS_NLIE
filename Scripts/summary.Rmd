@@ -34,7 +34,7 @@ setwd(params$wd)
 file <- params$input
 
 d <- read.csv(file, sep = ",", header=T)
-colnames(d) <- c("Name","PangoLinage", "WHOLinage", "Mean_Coverage", "Coverage_minDP10", "%_Coverage_minDP10", "MappedReads", "TotalReads", "%N_Consensus", "Vadr_QC")
+colnames(d) <- c("Name","PangoLinage", "WHOLinage", "Mean_Coverage", "Coverage_minDP10", "%_Coverage_minDP10", "MappedReads", "TotalReads", "%N_Consensus", "Vadr_QC", "Variants Homozygot", "Variants Heterozygot", "Mutations_Furin")
  
  DT::datatable(d, rownames = F, class = "cell-border stripe",
               extensions = c("Buttons", "Select", "SearchPanes", "FixedColumns"),

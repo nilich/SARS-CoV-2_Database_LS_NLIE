@@ -1,6 +1,6 @@
 ## Get Consensus Sequences using Ivar
 
-### create consensus --> use samtools as long as ivar did not update Manual (https://andersen-lab.github.io/ivar/html/manualpage.html)
+### create consensus --> use samtools as long as ivar did not update  (https://andersen-lab.github.io/ivar/html/manualpage.html)
 rule consensus:
     input:
         RESULTS_DIR + "/Alignment/{sample}.sorted.bam"

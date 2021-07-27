@@ -16,13 +16,6 @@ CWD=os.path.abspath(RESULTS_DIR)
 ## write functions for rule all, see https://github.com/cbg-ethz/V-pipe/blob/sars-cov2/rules/common.smk
 #include: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/ogb_snake"
 
-# check if vcf files are in RawReads folder, if yes, do not perform variant calling
-# does not work if samples with and without vcf files are in the same folder!
-#VCF=(glob.glob(RAW_READS + "/*.vcf"))
-#if len(VCF) > 0:
-#    include: "variantsS5.snake"
-#if len(VCF) == 0:
-#    include: "variantCalling.snake"
 
 ## set variantcalling in config file
 if config["general"]["VariantCalling"] == "S5":
@@ -36,12 +29,12 @@ if config["general"]["VariantCalling"] == "Custom":
 #if config["general"]["VariantCalling"] == "S5":
 #    include: "consensusS5.snake"
 
-if config["general"]["VariantCalling"] == "Custom":
+if config["general"]["Consensus"] == "Custom":
     include: "consensusIvar.snake"
 
+if config["general"]["Consensus"] == "S5":
+    include: "consensusS5.snake"
 
-## defines which files to output...
-## TODO: add outfiles from ogb
 rule all:
     input:
         expand(RESULTS_DIR + "/VariantAnnotation/{sample}.variants.annot.tab", sample=SAMPLES),
@@ -49,8 +42,7 @@ rule all:
         RESULTS_DIR + "/Consensus/pangolin_output.csv",
         RESULTS_DIR + "/Consensus/allSequences.fasta",
         expand(RESULTS_DIR + "/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
-        CWD + "/summary.html",
-        #expand(RESULTS_DIR + "/Consensus/{sample}.N.txt", sample=SAMPLES),
+        CWD + "/Summary.html",
         ##ogb output files
         #expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
         #expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
@@ -271,7 +263,7 @@ rule pangolin:
         RESULTS_DIR + "/Consensus/allSequences.fasta",
     output:
         full=RESULTS_DIR + "/Consensus/pangolin_output.csv",
-        reduced = RESULTS_DIR + "/Consensus/pangolin_output.red.csv",
+        reduced = temp(RESULTS_DIR + "/Consensus/pangolin_output.red.csv"),
     shell:
         """
         pangolin {input} --outfile {output.full}
@@ -334,7 +326,7 @@ rule summary:
     input:
         CWD + "/Summary_Results.csv"
     output:
-        CWD + "/summary.html",
+        CWD + "/Summary.html",
     params:
         wd=CWD
     shell:

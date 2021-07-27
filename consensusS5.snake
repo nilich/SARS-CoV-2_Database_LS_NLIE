@@ -1,7 +1,7 @@
 ## Get Consensus Sequences of the S5
 CNS_DIR = config["general"]["CNS_DIR"]
 
-BATCHES = glob_wildcards((CNS_DIR + "/{batch}.fasta"))
+BATCHES, = glob_wildcards((CNS_DIR + "/{batch}.fasta"))
 
 rule cat_fastas:
     input:
@@ -10,7 +10,7 @@ rule cat_fastas:
         temp(RESULTS_DIR + "/Consensus/all.fasta")
     shell:
         """
-        cat {input} > {output}
+        cat {input} | sed 's/__2019-nCoV//'  > {output}
         """
 
 rule get_fasta:
@@ -19,6 +19,6 @@ rule get_fasta:
     output:
         RESULTS_DIR + "/Consensus/{sample}.fa"
     shell:
-    """
-    python Scripts/get_seq.py -i {input} -id {wildcards.sample} -o {output}
-    """
+        """
+        python Scripts/get_seq.py -i {input} -id {wildcards.sample} -o {output}
+        """

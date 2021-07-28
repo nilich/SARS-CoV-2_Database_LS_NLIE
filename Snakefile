@@ -14,26 +14,21 @@ SAMPLES, = glob_wildcards((RAW_READS + "/{sample}.bam"))
 CWD=os.path.abspath(RESULTS_DIR)
 
 ## write functions for rule all, see https://github.com/cbg-ethz/V-pipe/blob/sars-cov2/rules/common.smk
-#include: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/ogb_snake"
+## integrate OpengenomeBrowser: see OGB folder
 
-
-## set variantcalling in config file
+## set variant Calling and Consensus in config file
 if config["general"]["VariantCalling"] == "S5":
-    include: "variantsS5.snake"
+    include: "Scripts/variantsS5.snake"
 
 if config["general"]["VariantCalling"] == "Custom":
-    include: "variantCalling.snake"
+    include: "Scripts/variantCalling.snake"
 
-##TODO: implement consensus calling from S5!
-# set computation of Consensus Sequence in config file:
-#if config["general"]["VariantCalling"] == "S5":
-#    include: "consensusS5.snake"
 
 if config["general"]["Consensus"] == "Custom":
-    include: "consensusIvar.snake"
+    include: "Scripts/consensusIvar.snake"
 
 if config["general"]["Consensus"] == "S5":
-    include: "consensusS5.snake"
+    include: "Scripts/consensusS5.snake"
 
 rule all:
     input:
@@ -43,10 +38,6 @@ rule all:
         RESULTS_DIR + "/Consensus/allSequences.fasta",
         expand(RESULTS_DIR + "/VADR/{sample}/{sample}.vadr.alt.list", sample=SAMPLES),
         CWD + "/Summary.html",
-        ##ogb output files
-        #expand(RESULTS_DIR + "/ogb/{sample}.json", sample=SAMPLES),
-        #expand(RESULTS_DIR + "/Prokka/{sample}/{sample}.txt", sample=SAMPLES),
-        #expand(RESULTS_DIR + "/VariantAnnotation/{sample}.md", sample=SAMPLES),
 
 ### bam to fastq
 rule bamTofastq:
@@ -194,8 +185,8 @@ rule cat_N:
         """
 
 ### run vadr for Quality Check of assembly
-### VADR is installed on the nfs, use this version or install it locally
-### and set the path to the vadr installation in the config file
+### VADR is installed on the nfs, use this version or install it locally and
+### set the path to the vadr installation in the config file
 rule vadr:
     input:
         RESULTS_DIR + "/Consensus/{sample}.fa"

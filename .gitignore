@@ -12,3 +12,4 @@ run_freebayes.sh
 test_*
 BioHub_test.yaml
 Consensus/
+OGB/

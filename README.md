@@ -11,10 +11,10 @@ Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
   `conda env create --file BioHub.yaml`
 
 #### 3. Install VADR (https://github.com/ncbi/vadr) locally and set the paths to your installation and the model in the config.yaml:
-    ```
-    vadrdir: "/mnt/nfs/bio/software/QC/VADR/" # path to your local vadr installation`
-    vadrmdir: "/mnt/nfs/bio/software/QC/VADR/vadr-models-sarscov2-1.2-2" # vadr model dir'
-    ```
+
+    vadrdir: "/mnt/nfs/bio/software/QC/VADR/" # path to your local vadr installation
+    vadrmdir: "/mnt/nfs/bio/software/QC/VADR/vadr-models-sarscov2-1.2-2" # vadr model dir
+
 
 #### 4. Configure your pipeline:
   * set the path to the directory containing the raw reads (RAW_READS) and the consensus sequences (CNS), the output directory (RESULTS_DIR) in the config.yaml

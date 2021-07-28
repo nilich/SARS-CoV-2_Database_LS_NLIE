@@ -40,11 +40,11 @@ Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
   * to run the pipeline on your local computer use:
   `snakemake -j {threads}`
 
-  Note: remove the barcode in the read file name before starting the pipeline (already integrated in the run_analysis.sh script) using:
-  ```
-  rename -n 's/(.*)IonCode_\d+.(bam)/\1\2/' *.bam
-  rename -n 's/(.*)IonCode_\d+.(vcf)/\1\2/' *.vcf
-  ```
+    Note: remove the barcode in the read file name before starting the pipeline (already integrated in the run_analysis.sh script) using:
+    ```
+    rename -n 's/(.*)IonCode_\d+.(bam)/\1\2/' *.bam
+    rename -n 's/(.*)IonCode_\d+.(vcf)/\1\2/' *.vcf
+    ```
 6. Update Pangolin within the BioHub environemnt regularly in order to analyse newest linages:
    ```
    pangolin --update
@@ -83,4 +83,4 @@ Results
 |    `-- sample.variants.annot.tab --> List of variants and their effect
 `-- Summary.html --> Summary of the results
 ```
-Tip: If the VADR Quality check fails, consult the VADR summary and visualize aligned reads (Alignment/*.bam) and vcf files in IGV (https://software.broadinstitute.org/software/igv/) to verify coverage and alignment.
+Note: If the VADR Quality check fails, consult the VADR summary and visualize aligned reads (Alignment/*.bam) and vcf files in IGV (https://software.broadinstitute.org/software/igv/) to verify coverage and alignment.

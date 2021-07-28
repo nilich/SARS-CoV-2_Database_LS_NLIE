@@ -4,21 +4,19 @@ Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
 
 ## Installation
 
-1. Clone the repository:
-
+#### 1. Clone the repository:
   `git clone https://github.com/nilich/SARS-CoV-2_Database_LS_NLIE.git`
 
-2. create a conda environment using the BioHub.yaml files:
-
+#### 2. create a conda environment using the BioHub.yaml files:
   `conda env create --file BioHub.yaml`
 
-3. Install VADR (https://github.com/ncbi/vadr) locally and set the paths to your installation and the model in the config.yaml:
+#### 3. Install VADR (https://github.com/ncbi/vadr) locally and set the paths to your installation and the model in the config.yaml:
     ```
     vadrdir: "/mnt/nfs/bio/software/QC/VADR/" # path to your local vadr installation`
     vadrmdir: "/mnt/nfs/bio/software/QC/VADR/vadr-models-sarscov2-1.2-2" # vadr model dir'
     ```
 
-4. Configure your pipeline:
+#### 4. Configure your pipeline:
   * set the path to the directory containing the raw reads (RAW_READS) and the consensus sequences (CNS), the output directory (RESULTS_DIR) in the config.yaml
     ```
     RAW_READS: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/Reads"
@@ -33,7 +31,7 @@ Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
   * set the parameter Consensus in the config.yaml to "S5" for using S5 computed consensus sequences or to "Custom" for building consensus sequences using Ivar
     `Consensus: "S5" # "S5 or Custom"`
 
-5. Run the Pipeline:
+#### 5. Run the Pipeline:
   * to run the pipeline on the cluster submit the run_analysis.sh script using:
   `sbatch run_analysis.sh`
 
@@ -45,7 +43,8 @@ Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
     rename -n 's/(.*)IonCode_\d+.(bam)/\1\2/' *.bam
     rename -n 's/(.*)IonCode_\d+.(vcf)/\1\2/' *.vcf
     ```
-6. Update Pangolin within the BioHub environemnt regularly in order to analyse newest linages:
+
+#### 6. Update Pangolin within the BioHub environemnt regularly in order to analyse newest linages:
    ```
    pangolin --update
    ```

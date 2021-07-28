@@ -4,8 +4,8 @@ rule indelqual:
     input:
         RESULTS_DIR + "/Alignment/{sample}.sorted.bam"
     output:
-        bam=RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam",
-        idx=RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam.bai"
+        bam=temp(RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam"),
+        idx=temp(RESULTS_DIR + "/LoFreq/{sample}.sorted.indelqual.bam.bai")
     threads:
         config["general"]["threads"]
     shell:

@@ -17,7 +17,7 @@ Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
 
 
 #### 4. Configure your pipeline:
-  * set the path to the directory containing the raw reads (RAW_READS) and the consensus sequences (CNS), the output directory (RESULTS_DIR) in the config.yaml
+  * set the path to the directory containing the raw reads (RAW_READS) and the consensus sequences (CNS_DIR), the output directory (RESULTS_DIR) in the config.yaml
     ```
     RAW_READS: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/Reads"
     CNS_DIR: "/mnt/nfs/bio/Sequencing/Virology/SARS-CoV-2_Database_LS_NLIE/Consensus"
@@ -36,12 +36,12 @@ Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
   `sbatch run_analysis.sh`
 
   * to run the pipeline on your local computer use:
-  `snakemake -j {threads}`
+  `snakemake -j {threads} --use-conda`
 
     Note: remove the barcode in the read file name before starting the pipeline (already integrated in the run_analysis.sh script) using:
     ```
-    rename -n 's/(.*)IonCode_\d+.(bam)/\1\2/' *.bam
-    rename -n 's/(.*)IonCode_\d+.(vcf)/\1\2/' *.vcf
+    rename 's/(.*)IonCode_\d+.(bam)/\1\2/' Reads/*.bam
+    rename 's/(.*)IonCode_\d+.(vcf)/\1\2/' Reads/*.vcf
     ```
 
 #### 6. Update Pangolin within the BioHub environemnt regularly in order to analyse newest linages:
@@ -82,4 +82,4 @@ Results
 |    `-- sample.variants.annot.tab --> List of variants and their effect
 `-- Summary.html --> Summary of the results
 ```
-Note: If the VADR Quality check fails, consult the VADR summary and visualize aligned reads (Alignment/*.bam) and vcf files in IGV (https://software.broadinstitute.org/software/igv/) to verify coverage and alignment.
+Note: If the VADR quality check fails, consult the VADR summary and visualize aligned reads (Alignment/*.bam) and vcf files in IGV (https://software.broadinstitute.org/software/igv/) to verify coverage and alignment.

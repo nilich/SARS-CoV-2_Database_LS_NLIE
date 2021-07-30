@@ -5,10 +5,10 @@
 #SBATCH --error=snakemake-%A.err
 #SBATCH --job-name=BioHub
 
-conda activate BioHub_test2
+conda activate BioHub
 
 # rename files to remove barcode:
-rename -n 's/(.*)IonCode_\d+.(bam)/\1\2/' *.bam
-rename -n 's/(.*)IonCode_\d+.(vcf)/\1\2/' *.vcf
+rename 's/(.*)IonCode_\d+.(bam)/\1\2/' Reads/*.bam
+rename 's/(.*)IonCode_\d+.(vcf)/\1\2/' Reads/*.vcf
 
 snakemake -j 32 --use-conda

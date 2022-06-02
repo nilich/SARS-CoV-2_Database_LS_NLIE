@@ -1,7 +1,7 @@
 # SARS-CoV-2_Database_LS_NLIE
 
 Pipeline to summarize the Results of the IonTorrent S5 SARS-CoV-2 AmpliSeq Panel
-This is a test
+
 
 ## Installation
 
